@@ -6,7 +6,7 @@ const User = require('../models/User');
 const Subscription = require('../models/Subscription');
 const { sendEmail } = require('../utils/email');
 const { protect } = require('../middleware/auth');
-const { executeDbOperation } = require('../utils/database');
+const { userOperations, subscriptionOperations } = require('../utils/database');
 
 // Validation middleware
 const validateRegistration = [
@@ -30,10 +30,8 @@ router.post('/register', validateRegistration, async (req, res) => {
   const { name, email, password } = req.body;
   
   try {
-    // Check if user exists using wrapped operation
-    const userExists = await executeDbOperation(async () => {
-      return await User.findOne({ email });
-    });
+    // Check if user exists using native driver
+    const userExists = await userOperations.findByEmail(email);
     
     if (userExists) {
       return res.status(400).json({
@@ -42,31 +40,33 @@ router.post('/register', validateRegistration, async (req, res) => {
       });
     }
     
-    // Create user
-    const user = await User.create({
+    // Create user using native driver
+    const user = await userOperations.create({
       name,
       email,
       password
     });
     
-    // Create free subscription
-    const subscription = await Subscription.create({
+    // Create free subscription using native driver
+    const subscription = await subscriptionOperations.create({
       user: user._id,
-      plan: 'free',
-      features: Subscription.getPlanDetails('free').features
+      plan: 'free'
     });
-    
-    user.subscription = subscription._id;
-    await user.save();
     
     // Generate email verification token
     const verifyToken = crypto.randomBytes(20).toString('hex');
-    user.emailVerificationToken = crypto
+    const emailVerificationToken = crypto
       .createHash('sha256')
       .update(verifyToken)
       .digest('hex');
-    user.emailVerificationExpire = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
-    await user.save();
+    const emailVerificationExpire = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
+    
+    // Update user with subscription and verification token
+    await userOperations.updateById(user._id, {
+      subscription: subscription._id,
+      emailVerificationToken,
+      emailVerificationExpire
+    });
     
     // Send verification email
     const verifyUrl = `${process.env.FRONTEND_URL}/verify-email/${verifyToken}`;
@@ -77,7 +77,10 @@ router.post('/register', validateRegistration, async (req, res) => {
     });
     
     // Create token
-    const token = user.getSignedJwtToken();
+    const jwt = require('jsonwebtoken');
+    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET || 'secret', {
+      expiresIn: process.env.JWT_EXPIRE || '30d'
+    });
     
     res.status(201).json({
       success: true,
@@ -108,12 +111,10 @@ router.post('/login', validateLogin, async (req, res) => {
   const { email, password } = req.body;
   
   try {
-    // Check for user using wrapped operation
-    const user = await executeDbOperation(async () => {
-      return await User.findOne({ email }).select('+password');
-    });
+    // Check for user using native driver
+    const userData = await userOperations.findByEmail(email);
     
-    if (!user) {
+    if (!userData) {
       return res.status(401).json({
         success: false,
         error: 'Invalid credentials'
@@ -121,7 +122,8 @@ router.post('/login', validateLogin, async (req, res) => {
     }
     
     // Check if password matches
-    const isMatch = await user.matchPassword(password);
+    const bcrypt = require('bcryptjs');
+    const isMatch = await bcrypt.compare(password, userData.password);
     
     if (!isMatch) {
       return res.status(401).json({
@@ -131,21 +133,25 @@ router.post('/login', validateLogin, async (req, res) => {
     }
     
     // Update last login
-    user.lastLogin = Date.now();
-    await user.save();
+    await userOperations.updateById(userData._id, {
+      lastLogin: Date.now()
+    });
     
     // Create token
-    const token = user.getSignedJwtToken();
+    const jwt = require('jsonwebtoken');
+    const token = jwt.sign({ id: userData._id }, process.env.JWT_SECRET || 'secret', {
+      expiresIn: process.env.JWT_EXPIRE || '30d'
+    });
     
     res.status(200).json({
       success: true,
       token,
       user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        isEmailVerified: user.isEmailVerified
+        id: userData._id,
+        name: userData.name,
+        email: userData.email,
+        role: userData.role,
+        isEmailVerified: userData.isEmailVerified
       }
     });
   } catch (err) {
