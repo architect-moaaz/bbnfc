@@ -43,13 +43,23 @@ async function connectToDatabase() {
       throw new Error('MONGODB_URI is not defined');
     }
 
+    // Disconnect any existing connection first
+    if (mongoose.connection.readyState !== 0) {
+      await mongoose.disconnect();
+    }
+
     const connection = await mongoose.connect(mongoUri, {
-      serverSelectionTimeoutMS: 5000,
+      serverSelectionTimeoutMS: 30000,
       socketTimeoutMS: 45000,
       bufferCommands: false,
       connectTimeoutMS: 30000,
+      maxPoolSize: 1,
+      minPoolSize: 0,
       family: 4
     });
+    
+    // Wait for connection to be fully ready
+    await mongoose.connection.asPromise();
     
     cachedDb = connection;
     console.log('MongoDB connected successfully');
