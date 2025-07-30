@@ -6,6 +6,8 @@ require('dotenv').config();
 
 // Set mongoose timeout globally for serverless
 mongoose.set('bufferCommands', false);
+mongoose.set('bufferMaxEntries', 0);
+mongoose.set('bufferTimeout', 30000);
 
 const app = express();
 
