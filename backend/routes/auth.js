@@ -6,6 +6,7 @@ const User = require('../models/User');
 const Subscription = require('../models/Subscription');
 const { sendEmail } = require('../utils/email');
 const { protect } = require('../middleware/auth');
+const { executeDbOperation } = require('../utils/database');
 
 // Validation middleware
 const validateRegistration = [
@@ -29,11 +30,9 @@ router.post('/register', validateRegistration, async (req, res) => {
   const { name, email, password } = req.body;
   
   try {
-    // Check if user exists with explicit timeout and no buffering
-    const userExists = await User.findOne({ email }).setOptions({ 
-      bufferCommands: false,
-      bufferTimeoutMS: 0,
-      maxTimeMS: 30000 
+    // Check if user exists using wrapped operation
+    const userExists = await executeDbOperation(async () => {
+      return await User.findOne({ email });
     });
     
     if (userExists) {
@@ -109,11 +108,9 @@ router.post('/login', validateLogin, async (req, res) => {
   const { email, password } = req.body;
   
   try {
-    // Check for user with explicit timeout and no buffering
-    const user = await User.findOne({ email }).select('+password').setOptions({ 
-      bufferCommands: false,
-      bufferTimeoutMS: 0,
-      maxTimeMS: 30000 
+    // Check for user using wrapped operation
+    const user = await executeDbOperation(async () => {
+      return await User.findOne({ email }).select('+password');
     });
     
     if (!user) {
