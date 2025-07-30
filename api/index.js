@@ -63,9 +63,21 @@ async function connectToDatabase() {
     // Wait for connection to be fully ready and test it
     await mongoose.connection.asPromise();
     
-    // Force a simple operation to ensure the connection is truly ready
-    await mongoose.connection.db.admin().ping();
-    console.log('MongoDB ping successful');
+    console.log('Connection state after connect:', mongoose.connection.readyState);
+    console.log('Connection.db exists:', !!mongoose.connection.db);
+    
+    // Wait a bit more for the connection to stabilize
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    console.log('After wait - Connection.db exists:', !!mongoose.connection.db);
+    
+    if (mongoose.connection.db) {
+      // Force a simple operation to ensure the connection is truly ready
+      await mongoose.connection.db.admin().ping();
+      console.log('MongoDB ping successful');
+    } else {
+      console.log('WARNING: mongoose.connection.db is still undefined after connection');
+    }
     
     cachedDb = connection;
     console.log('MongoDB connected successfully');
@@ -104,7 +116,9 @@ app.get('/api/test-db', async (req, res) => {
     const User = require('../backend/models/User');
     
     // Use the native MongoDB driver directly to bypass Mongoose buffering
-    const userCount = await mongoose.connection.db.collection('users').countDocuments({});
+    const client = mongoose.connection.getClient();
+    const db = client?.db(mongoose.connection.name || 'test');
+    const userCount = db ? await db.collection('users').countDocuments({}) : 'DB not available';
     
     res.json({
       status: 'success',
@@ -118,8 +132,8 @@ app.get('/api/test-db', async (req, res) => {
       },
       currentState: mongoose.connection.readyState,
       userCount: userCount,
-      databaseName: mongoose.connection.db ? mongoose.connection.db.databaseName : 'unknown',
-      collections: await mongoose.connection.db.listCollections().toArray()
+      databaseName: db ? db.databaseName : 'unknown',
+      collections: db ? await db.listCollections().toArray() : []
     });
   } catch (error) {
     res.status(500).json({

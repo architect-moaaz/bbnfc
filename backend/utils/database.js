@@ -1,35 +1,43 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
-// Wait for database connection to be ready
-async function waitForConnection(maxRetries = 20) {
-  let retries = 0;
-  while (retries < maxRetries) {
-    if (mongoose.connection.readyState === 1 && mongoose.connection.db) {
-      return true;
-    }
-    await new Promise(resolve => setTimeout(resolve, 500));
-    retries++;
+// Get native MongoDB database instance
+async function getDatabase() {
+  // If mongoose connection is not ready, wait
+  if (mongoose.connection.readyState !== 1) {
+    await new Promise((resolve, reject) => {
+      mongoose.connection.once('connected', resolve);
+      mongoose.connection.once('error', reject);
+      setTimeout(() => reject(new Error('Connection timeout')), 30000);
+    });
   }
-  throw new Error('Database connection not ready after waiting');
+  
+  // Try to get the database instance
+  const db = mongoose.connection.getClient()?.db(mongoose.connection.name || 'test');
+  
+  if (!db) {
+    throw new Error('Could not get database instance');
+  }
+  
+  return db;
 }
 
 // Execute any database operation with connection check
 async function withDatabase(operation) {
-  await waitForConnection();
-  return await operation();
+  const db = await getDatabase();
+  return await operation(db);
 }
 
 // Native operations for User model
 const userOperations = {
   async findByEmail(email) {
-    return await withDatabase(async () => {
-      return await mongoose.connection.db.collection('users').findOne({ email });
+    return await withDatabase(async (db) => {
+      return await db.collection('users').findOne({ email });
     });
   },
 
   async create(userData) {
-    return await withDatabase(async () => {
+    return await withDatabase(async (db) => {
       // Hash password
       const salt = await bcrypt.genSalt(10);
       const hashedPassword = await bcrypt.hash(userData.password, salt);
@@ -46,7 +54,7 @@ const userOperations = {
         __v: 0
       };
       
-      const result = await mongoose.connection.db.collection('users').insertOne(userDoc);
+      const result = await db.collection('users').insertOne(userDoc);
       
       if (!result.acknowledged) {
         throw new Error('Failed to create user');
@@ -57,8 +65,8 @@ const userOperations = {
   },
 
   async updateById(userId, updates) {
-    return await withDatabase(async () => {
-      const result = await mongoose.connection.db.collection('users').updateOne(
+    return await withDatabase(async (db) => {
+      const result = await db.collection('users').updateOne(
         { _id: userId },
         { $set: updates }
       );
@@ -70,7 +78,7 @@ const userOperations = {
 // Native operations for Subscription model  
 const subscriptionOperations = {
   async create(subscriptionData) {
-    return await withDatabase(async () => {
+    return await withDatabase(async (db) => {
       const subDoc = {
         _id: new mongoose.Types.ObjectId(),
         user: subscriptionData.user,
@@ -90,7 +98,7 @@ const subscriptionOperations = {
         __v: 0
       };
       
-      const result = await mongoose.connection.db.collection('subscriptions').insertOne(subDoc);
+      const result = await db.collection('subscriptions').insertOne(subDoc);
       
       if (!result.acknowledged) {
         throw new Error('Failed to create subscription');
