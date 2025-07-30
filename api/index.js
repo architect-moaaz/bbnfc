@@ -6,7 +6,6 @@ require('dotenv').config();
 
 // Set mongoose timeout globally for serverless
 mongoose.set('bufferCommands', false);
-mongoose.set('bufferMaxEntries', 0);
 
 const app = express();
 
@@ -48,7 +47,6 @@ async function connectToDatabase() {
       serverSelectionTimeoutMS: 5000,
       socketTimeoutMS: 45000,
       bufferCommands: false,
-      bufferMaxEntries: 0,
       connectTimeoutMS: 30000,
       family: 4
     });
