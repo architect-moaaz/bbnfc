@@ -1,0 +1,123 @@
+/* Global CSS following design guidelines */
+
+/* Screen reader only class for accessibility */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* Focus visible styles for keyboard navigation */
+*:focus-visible {
+  outline: 2px solid #1B365F;
+  outline-offset: 2px;
+}
+
+/* Respect user preferences for reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Ensure touch targets are at least 44x44px */
+button,
+a,
+input,
+select,
+textarea {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Skip to main content link for keyboard users */
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 0;
+  background: #1B365F;
+  color: white;
+  padding: 8px;
+  text-decoration: none;
+  border-radius: 0 0 8px 0;
+  z-index: 100;
+}
+
+.skip-link:focus {
+  top: 0;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  * {
+    outline-width: 2px !important;
+  }
+  
+  button,
+  a {
+    text-decoration: underline;
+  }
+}
+
+/* Print styles */
+@media print {
+  /* Hide navigation and non-essential elements */
+  nav,
+  .no-print {
+    display: none !important;
+  }
+  
+  /* Ensure good contrast for printing */
+  * {
+    background: white !important;
+    color: black !important;
+  }
+  
+  /* Show link URLs */
+  a[href]::after {
+    content: " (" attr(href) ")";
+  }
+}
+
+/* Loading skeleton animation */
+@keyframes skeleton-loading {
+  0% {
+    background-position: -200px 0;
+  }
+  100% {
+    background-position: calc(200px + 100%) 0;
+  }
+}
+
+.skeleton {
+  background-color: #e5e7eb;
+  background-image: linear-gradient(
+    90deg,
+    #e5e7eb,
+    #f3f4f6,
+    #e5e7eb
+  );
+  background-size: 200px 100%;
+  background-repeat: no-repeat;
+  animation: skeleton-loading 1.5s ease-in-out infinite;
+}
+
+/* Utility classes following spacing system */
+.spacing-xs { margin: 4px; }
+.spacing-sm { margin: 8px; }
+.spacing-md { margin: 16px; }
+.spacing-lg { margin: 24px; }
+.spacing-xl { margin: 32px; }
+.spacing-2xl { margin: 48px; }
+.spacing-3xl { margin: 64px; }
