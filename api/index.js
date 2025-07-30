@@ -58,14 +58,19 @@ async function connectToDatabase() {
       family: 4
     });
     
-    // Wait for connection to be fully ready
+    // Wait for connection to be fully ready and test it
     await mongoose.connection.asPromise();
+    
+    // Force a simple operation to ensure the connection is truly ready
+    await mongoose.connection.db.admin().ping();
+    console.log('MongoDB ping successful');
     
     cachedDb = connection;
     console.log('MongoDB connected successfully');
     return connection;
   } catch (error) {
     console.error('MongoDB connection error:', error);
+    cachedDb = null; // Reset cache on error
     throw error;
   }
 }
@@ -90,9 +95,14 @@ app.get('/api/test-db', async (req, res) => {
   try {
     await connectToDatabase();
     
+    // Give a small delay to ensure connection is fully established
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
     // Try a simple database operation to test if it works
     const User = require('../backend/models/User');
-    const testResult = await User.countDocuments().maxTimeMS(30000);
+    
+    // Use the native MongoDB driver directly to bypass Mongoose buffering
+    const userCount = await mongoose.connection.db.collection('users').countDocuments({});
     
     res.json({
       status: 'success',
@@ -105,8 +115,9 @@ app.get('/api/test-db', async (req, res) => {
         3: 'disconnecting'
       },
       currentState: mongoose.connection.readyState,
-      userCount: testResult,
-      databaseName: mongoose.connection.db ? mongoose.connection.db.databaseName : 'unknown'
+      userCount: userCount,
+      databaseName: mongoose.connection.db ? mongoose.connection.db.databaseName : 'unknown',
+      collections: await mongoose.connection.db.listCollections().toArray()
     });
   } catch (error) {
     res.status(500).json({
