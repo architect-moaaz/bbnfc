@@ -4,6 +4,10 @@ const cors = require('cors');
 const helmet = require('helmet');
 require('dotenv').config();
 
+// Set mongoose timeout globally for serverless
+mongoose.set('bufferCommands', false);
+mongoose.set('bufferMaxEntries', 0);
+
 const app = express();
 
 // Trust proxy configuration for Vercel
@@ -43,6 +47,10 @@ async function connectToDatabase() {
     const connection = await mongoose.connect(mongoUri, {
       serverSelectionTimeoutMS: 5000,
       socketTimeoutMS: 45000,
+      bufferCommands: false,
+      bufferMaxEntries: 0,
+      connectTimeoutMS: 30000,
+      family: 4
     });
     
     cachedDb = connection;
