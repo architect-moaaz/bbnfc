@@ -29,9 +29,12 @@ router.post('/register', validateRegistration, async (req, res) => {
   const { name, email, password } = req.body;
   
   try {
-    // Check if user exists using native MongoDB driver to avoid buffering
-    const mongoose = require('mongoose');
-    const userExists = await mongoose.connection.db.collection('users').findOne({ email });
+    // Check if user exists with explicit timeout and no buffering
+    const userExists = await User.findOne({ email }).setOptions({ 
+      bufferCommands: false,
+      bufferTimeoutMS: 0,
+      maxTimeMS: 30000 
+    });
     
     if (userExists) {
       return res.status(400).json({
@@ -106,19 +109,19 @@ router.post('/login', validateLogin, async (req, res) => {
   const { email, password } = req.body;
   
   try {
-    // Check for user using native MongoDB driver to avoid buffering
-    const mongoose = require('mongoose');
-    const userData = await mongoose.connection.db.collection('users').findOne({ email });
+    // Check for user with explicit timeout and no buffering
+    const user = await User.findOne({ email }).select('+password').setOptions({ 
+      bufferCommands: false,
+      bufferTimeoutMS: 0,
+      maxTimeMS: 30000 
+    });
     
-    if (!userData) {
+    if (!user) {
       return res.status(401).json({
         success: false,
         error: 'Invalid credentials'
       });
     }
-    
-    // Create a Mongoose document from the raw data for methods
-    const user = new User(userData);
     
     // Check if password matches
     const isMatch = await user.matchPassword(password);
