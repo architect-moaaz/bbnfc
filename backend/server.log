@@ -1,0 +1,38 @@
+
+> nfc-business-card-backend@1.0.0 start
+> node server.js
+
+Server running on port 5000
+MongoDB connected successfully
+Public profile request: 6889dea092c1a29c208efd35 from IP: ::1
+Checking for existing view: {
+  profile: new ObjectId('6889dea092c1a29c208efd35'),
+  sessionId: '::1_Y3VybC84LjQuMA==',
+  oneHourAgo: 2025-07-30T08:31:12.377Z
+}
+Existing view found: YES
+View already recorded for this session within the last hour
+Public profile request: 6889dea092c1a29c208efd35 from IP: ::1
+Checking for existing view: {
+  profile: new ObjectId('6889dea092c1a29c208efd35'),
+  sessionId: '::1_Y3VybC84LjQuMA==',
+  oneHourAgo: 2025-07-30T08:31:21.087Z
+}
+Existing view found: YES
+View already recorded for this session within the last hour
+Public profile request: 6889dea092c1a29c208efd35 from IP: ::1
+Checking for existing view: {
+  profile: new ObjectId('6889dea092c1a29c208efd35'),
+  sessionId: '::1_Y3VybC84LjQuMA==',
+  oneHourAgo: 2025-07-30T08:31:21.122Z
+}
+Existing view found: YES
+View already recorded for this session within the last hour
+Public profile request: 6889dea092c1a29c208efd35 from IP: ::1
+Checking for existing view: {
+  profile: new ObjectId('6889dea092c1a29c208efd35'),
+  sessionId: '::1_Y3VybC84LjQuMA==',
+  oneHourAgo: 2025-07-30T08:31:36.282Z
+}
+Existing view found: YES
+View already recorded for this session within the last hour
