@@ -6,8 +6,6 @@ require('dotenv').config();
 
 // Set mongoose timeout globally for serverless
 mongoose.set('bufferCommands', false);
-mongoose.set('bufferMaxEntries', 0);
-mongoose.set('bufferTimeout', 30000);
 
 const app = express();
 
@@ -91,16 +89,31 @@ app.get('/api/health', (req, res) => {
 app.get('/api/test-db', async (req, res) => {
   try {
     await connectToDatabase();
+    
+    // Try a simple database operation to test if it works
+    const User = require('../backend/models/User');
+    const testResult = await User.countDocuments().maxTimeMS(30000);
+    
     res.json({
       status: 'success',
       message: 'Database connected successfully',
-      mongooseConnectionState: require('mongoose').connection.readyState
+      mongooseConnectionState: mongoose.connection.readyState,
+      connectionStates: {
+        0: 'disconnected',
+        1: 'connected', 
+        2: 'connecting',
+        3: 'disconnecting'
+      },
+      currentState: mongoose.connection.readyState,
+      userCount: testResult,
+      databaseName: mongoose.connection.db ? mongoose.connection.db.databaseName : 'unknown'
     });
   } catch (error) {
     res.status(500).json({
       status: 'error',
-      message: 'Database connection failed',
+      message: 'Database connection or operation failed',
       error: error.message,
+      mongooseConnectionState: mongoose.connection.readyState,
       stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
