@@ -2,11 +2,9 @@ const express = require('express');
 const router = express.Router();
 const { body, validationResult } = require('express-validator');
 const crypto = require('crypto');
-const User = require('../models/User');
-const Subscription = require('../models/Subscription');
 const { sendEmail } = require('../utils/email');
 const { protect } = require('../middleware/auth');
-const { userOperations, subscriptionOperations } = require('../utils/database');
+const { userOperations, subscriptionOperations, authHelpers } = require('../utils/supabaseOperations');
 
 // Validation middleware
 const validateRegistration = [
@@ -40,32 +38,27 @@ router.post('/register', validateRegistration, async (req, res) => {
       });
     }
     
-    // Create user using native driver
+    // Create user using Supabase
     const user = await userOperations.create({
       name,
       email,
       password
     });
     
-    // Create free subscription using native driver
+    // Create free subscription using Supabase
     const subscription = await subscriptionOperations.create({
-      user: user._id,
+      user: user.id,
       plan: 'free'
     });
     
     // Generate email verification token
-    const verifyToken = crypto.randomBytes(20).toString('hex');
-    const emailVerificationToken = crypto
-      .createHash('sha256')
-      .update(verifyToken)
-      .digest('hex');
-    const emailVerificationExpire = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
+    const { token: verifyToken, hashedToken: emailVerificationToken } = authHelpers.generateVerificationToken();
+    const emailVerificationExpire = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(); // 24 hours
     
-    // Update user with subscription and verification token
-    await userOperations.updateById(user._id, {
-      subscription: subscription._id,
-      emailVerificationToken,
-      emailVerificationExpire
+    // Update user with verification token
+    await userOperations.updateById(user.id, {
+      email_verification_token: emailVerificationToken,
+      email_verification_expire: emailVerificationExpire
     });
     
     // Send verification email
@@ -77,16 +70,13 @@ router.post('/register', validateRegistration, async (req, res) => {
     });
     
     // Create token
-    const jwt = require('jsonwebtoken');
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET || 'secret', {
-      expiresIn: process.env.JWT_EXPIRE || '30d'
-    });
+    const token = authHelpers.generateJWT(user.id);
     
     res.status(201).json({
       success: true,
       token,
       user: {
-        id: user._id,
+        id: user.id,
         name: user.name,
         email: user.email,
         role: user.role
@@ -111,7 +101,7 @@ router.post('/login', validateLogin, async (req, res) => {
   const { email, password } = req.body;
   
   try {
-    // Check for user using native driver
+    // Check for user using Supabase
     const userData = await userOperations.findByEmail(email);
     
     if (!userData) {
@@ -122,8 +112,7 @@ router.post('/login', validateLogin, async (req, res) => {
     }
     
     // Check if password matches
-    const bcrypt = require('bcryptjs');
-    const isMatch = await bcrypt.compare(password, userData.password);
+    const isMatch = await authHelpers.comparePassword(password, userData.password);
     
     if (!isMatch) {
       return res.status(401).json({
@@ -133,25 +122,22 @@ router.post('/login', validateLogin, async (req, res) => {
     }
     
     // Update last login
-    await userOperations.updateById(userData._id, {
-      lastLogin: Date.now()
+    await userOperations.updateById(userData.id, {
+      last_login: new Date().toISOString()
     });
     
     // Create token
-    const jwt = require('jsonwebtoken');
-    const token = jwt.sign({ id: userData._id }, process.env.JWT_SECRET || 'secret', {
-      expiresIn: process.env.JWT_EXPIRE || '30d'
-    });
+    const token = authHelpers.generateJWT(userData.id);
     
     res.status(200).json({
       success: true,
       token,
       user: {
-        id: userData._id,
+        id: userData.id,
         name: userData.name,
         email: userData.email,
         role: userData.role,
-        isEmailVerified: userData.isEmailVerified
+        isEmailVerified: userData.is_email_verified
       }
     });
   } catch (err) {
