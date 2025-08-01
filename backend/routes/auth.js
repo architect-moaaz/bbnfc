@@ -2,10 +2,9 @@ const express = require('express');
 const router = express.Router();
 const { body, validationResult } = require('express-validator');
 const crypto = require('crypto');
-const User = require('../models/User');
-const Subscription = require('../models/Subscription');
 const { sendEmail } = require('../utils/email');
 const { protect } = require('../middleware/auth');
+const { userOperations, subscriptionOperations } = require('../utils/dbOperations');
 
 // Validation middleware
 const validateRegistration = [
@@ -30,7 +29,7 @@ router.post('/register', validateRegistration, async (req, res) => {
   
   try {
     // Check if user exists
-    const userExists = await User.findOne({ email }).maxTimeMS(30000);
+    const userExists = await userOperations.findByEmail(email);
     
     if (userExists) {
       return res.status(400).json({
@@ -40,30 +39,28 @@ router.post('/register', validateRegistration, async (req, res) => {
     }
     
     // Create user
-    const user = await User.create({
+    const user = await userOperations.create({
       name,
       email,
       password
     });
     
     // Create free subscription
-    const subscription = await Subscription.create({
+    const subscription = await subscriptionOperations.create({
       user: user._id,
       plan: 'free',
-      features: Subscription.getPlanDetails('free').features
+      features: subscriptionOperations.getPlanDetails('free').features
     });
     
-    user.subscription = subscription._id;
-    await user.save();
-    
     // Generate email verification token
-    const verifyToken = crypto.randomBytes(20).toString('hex');
-    user.emailVerificationToken = crypto
-      .createHash('sha256')
-      .update(verifyToken)
-      .digest('hex');
-    user.emailVerificationExpire = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
-    await user.save();
+    const { token: verifyToken, hashedToken } = userOperations.generateVerificationToken();
+    
+    // Update user with subscription and verification token
+    await userOperations.updateById(user._id, {
+      subscription: subscription._id,
+      emailVerificationToken: hashedToken,
+      emailVerificationExpire: Date.now() + 24 * 60 * 60 * 1000 // 24 hours
+    });
     
     // Send verification email
     const verifyUrl = `${process.env.FRONTEND_URL}/verify-email/${verifyToken}`;
@@ -74,7 +71,7 @@ router.post('/register', validateRegistration, async (req, res) => {
     });
     
     // Create token
-    const token = user.getSignedJwtToken();
+    const token = userOperations.generateJwtToken(user._id);
     
     res.status(201).json({
       success: true,
@@ -106,7 +103,7 @@ router.post('/login', validateLogin, async (req, res) => {
   
   try {
     // Check for user
-    const user = await User.findOne({ email }).select('+password').maxTimeMS(30000);
+    const user = await userOperations.findByEmail(email);
     
     if (!user) {
       return res.status(401).json({
@@ -116,7 +113,7 @@ router.post('/login', validateLogin, async (req, res) => {
     }
     
     // Check if password matches
-    const isMatch = await user.matchPassword(password);
+    const isMatch = await userOperations.comparePassword(password, user.password);
     
     if (!isMatch) {
       return res.status(401).json({
@@ -126,11 +123,12 @@ router.post('/login', validateLogin, async (req, res) => {
     }
     
     // Update last login
-    user.lastLogin = Date.now();
-    await user.save();
+    await userOperations.updateById(user._id, {
+      lastLogin: Date.now()
+    });
     
     // Create token
-    const token = user.getSignedJwtToken();
+    const token = userOperations.generateJwtToken(user._id);
     
     res.status(200).json({
       success: true,

@@ -1,13 +1,8 @@
 const express = require('express');
-const mongoose = require('mongoose');
 const cors = require('cors');
 const helmet = require('helmet');
+const { connectToDatabase } = require('../backend/utils/mongodb');
 require('dotenv').config();
-
-// Set mongoose timeout globally for serverless
-mongoose.set('bufferCommands', false);
-mongoose.set('autoCreate', false);
-mongoose.set('autoIndex', false);
 
 const app = express();
 
@@ -28,78 +23,19 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Database connection with connection reuse for serverless
-let cachedDb = null;
-
-async function connectToDatabase() {
-  if (cachedDb && mongoose.connection.readyState === 1) {
-    console.log('Using cached database connection');
-    return cachedDb;
-  }
-
-  try {
-    console.log('Creating new database connection...');
-    const mongoUri = process.env.MONGODB_URI || 'mongodb+srv://m:to7kXzNixG4y78CB@cluster0.dbmqmws.mongodb.net/?retryWrites=true&w=majority&appName=cluster0';
-    
-    if (!mongoUri) {
-      throw new Error('MONGODB_URI is not defined');
-    }
-
-    // Disconnect any existing connection first
-    if (mongoose.connection.readyState !== 0) {
-      await mongoose.disconnect();
-    }
-
-    const connection = await mongoose.connect(mongoUri, {
-      serverSelectionTimeoutMS: 30000,
-      socketTimeoutMS: 45000,
-      bufferCommands: false,
-      connectTimeoutMS: 30000,
-      maxPoolSize: 1,
-      minPoolSize: 0,
-      family: 4
-    });
-    
-    // Wait for connection to be fully ready and test it
-    await mongoose.connection.asPromise();
-    
-    console.log('Connection state after connect:', mongoose.connection.readyState);
-    console.log('Connection.db exists:', !!mongoose.connection.db);
-    
-    // Wait a bit more for the connection to stabilize
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    console.log('After wait - Connection.db exists:', !!mongoose.connection.db);
-    
-    if (mongoose.connection.db) {
-      // Force a simple operation to ensure the connection is truly ready
-      await mongoose.connection.db.admin().ping();
-      console.log('MongoDB ping successful');
-    } else {
-      console.log('WARNING: mongoose.connection.db is still undefined after connection');
-    }
-    
-    cachedDb = connection;
-    console.log('MongoDB connected successfully');
-    return connection;
-  } catch (error) {
-    console.error('MongoDB connection error:', error);
-    cachedDb = null; // Reset cache on error
-    throw error;
-  }
-}
+// Native MongoDB driver - no need for complex connection handling
 
 // Don't connect immediately - let routes handle it
 // This prevents connection timeouts during cold starts
 
-// Health check route (no DB required)
+// Health check route
 app.get('/api/health', (req, res) => {
   res.json({ 
     status: 'ok', 
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development',
     mongoUri: process.env.MONGODB_URI ? 'configured' : 'missing',
-    mongooseVersion: require('mongoose').version,
+    mongoDriver: 'native',
     nodeVersion: process.version
   });
 });
@@ -107,64 +43,31 @@ app.get('/api/health', (req, res) => {
 // Test DB connection route
 app.get('/api/test-db', async (req, res) => {
   try {
-    await connectToDatabase();
+    const db = await connectToDatabase();
     
-    // Give a small delay to ensure connection is fully established
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Try a simple database operation to test if it works
-    const User = require('../backend/models/User');
-    
-    // Use the native MongoDB driver directly to bypass Mongoose buffering
-    const client = mongoose.connection.getClient();
-    const db = client?.db(mongoose.connection.name || 'test');
-    const userCount = db ? await db.collection('users').countDocuments({}) : 'DB not available';
+    // Test with a simple operation
+    const userCount = await db.collection('users').countDocuments({});
+    const collections = await db.listCollections().toArray();
     
     res.json({
       status: 'success',
-      message: 'Database connected successfully',
-      mongooseConnectionState: mongoose.connection.readyState,
-      connectionStates: {
-        0: 'disconnected',
-        1: 'connected', 
-        2: 'connecting',
-        3: 'disconnecting'
-      },
-      currentState: mongoose.connection.readyState,
+      message: 'Native MongoDB driver connected successfully',
       userCount: userCount,
-      databaseName: db ? db.databaseName : 'unknown',
-      collections: db ? await db.listCollections().toArray() : []
+      databaseName: db.databaseName,
+      collections: collections.map(c => c.name),
+      driver: 'native-mongodb'
     });
   } catch (error) {
     res.status(500).json({
       status: 'error',
-      message: 'Database connection or operation failed',
+      message: 'Database connection failed',
       error: error.message,
-      mongooseConnectionState: mongoose.connection.readyState,
       stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 });
 
-// Middleware to ensure database connection for other routes
-app.use(async (req, res, next) => {
-  // Skip database connection for health check
-  if (req.path === '/api/health') {
-    return next();
-  }
-  
-  try {
-    await connectToDatabase();
-    next();
-  } catch (error) {
-    console.error('Database connection failed:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: 'Database connection failed',
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-});
+// No middleware needed with native driver - connections are handled per request
 
 // Routes
 app.use('/api/auth', require('../backend/routes/auth'));
