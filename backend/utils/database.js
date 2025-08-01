@@ -3,23 +3,28 @@ const bcrypt = require('bcryptjs');
 
 // Get native MongoDB database instance
 async function getDatabase() {
-  // If mongoose connection is not ready, wait
-  if (mongoose.connection.readyState !== 1) {
-    await new Promise((resolve, reject) => {
-      mongoose.connection.once('connected', resolve);
-      mongoose.connection.once('error', reject);
-      setTimeout(() => reject(new Error('Connection timeout')), 30000);
-    });
+  // Wait for connection with retries
+  let retries = 0;
+  const maxRetries = 30; // 15 seconds total
+  
+  while (retries < maxRetries) {
+    if (mongoose.connection.readyState === 1) {
+      // Connection is ready, try to get database
+      const client = mongoose.connection.getClient();
+      if (client) {
+        const db = client.db(mongoose.connection.name || 'test');
+        if (db) {
+          return db;
+        }
+      }
+    }
+    
+    // Wait 500ms before next retry
+    await new Promise(resolve => setTimeout(resolve, 500));
+    retries++;
   }
   
-  // Try to get the database instance
-  const db = mongoose.connection.getClient()?.db(mongoose.connection.name || 'test');
-  
-  if (!db) {
-    throw new Error('Could not get database instance');
-  }
-  
-  return db;
+  throw new Error('Database connection not available after retries');
 }
 
 // Execute any database operation with connection check

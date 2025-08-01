@@ -6,7 +6,6 @@ const User = require('../models/User');
 const Subscription = require('../models/Subscription');
 const { sendEmail } = require('../utils/email');
 const { protect } = require('../middleware/auth');
-const { userOperations, subscriptionOperations } = require('../utils/database');
 
 // Validation middleware
 const validateRegistration = [
@@ -30,8 +29,8 @@ router.post('/register', validateRegistration, async (req, res) => {
   const { name, email, password } = req.body;
   
   try {
-    // Check if user exists using native driver
-    const userExists = await userOperations.findByEmail(email);
+    // Check if user exists
+    const userExists = await User.findOne({ email }).maxTimeMS(30000);
     
     if (userExists) {
       return res.status(400).json({
@@ -40,33 +39,31 @@ router.post('/register', validateRegistration, async (req, res) => {
       });
     }
     
-    // Create user using native driver
-    const user = await userOperations.create({
+    // Create user
+    const user = await User.create({
       name,
       email,
       password
     });
     
-    // Create free subscription using native driver
-    const subscription = await subscriptionOperations.create({
+    // Create free subscription
+    const subscription = await Subscription.create({
       user: user._id,
-      plan: 'free'
+      plan: 'free',
+      features: Subscription.getPlanDetails('free').features
     });
+    
+    user.subscription = subscription._id;
+    await user.save();
     
     // Generate email verification token
     const verifyToken = crypto.randomBytes(20).toString('hex');
-    const emailVerificationToken = crypto
+    user.emailVerificationToken = crypto
       .createHash('sha256')
       .update(verifyToken)
       .digest('hex');
-    const emailVerificationExpire = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
-    
-    // Update user with subscription and verification token
-    await userOperations.updateById(user._id, {
-      subscription: subscription._id,
-      emailVerificationToken,
-      emailVerificationExpire
-    });
+    user.emailVerificationExpire = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
+    await user.save();
     
     // Send verification email
     const verifyUrl = `${process.env.FRONTEND_URL}/verify-email/${verifyToken}`;
@@ -77,10 +74,7 @@ router.post('/register', validateRegistration, async (req, res) => {
     });
     
     // Create token
-    const jwt = require('jsonwebtoken');
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET || 'secret', {
-      expiresIn: process.env.JWT_EXPIRE || '30d'
-    });
+    const token = user.getSignedJwtToken();
     
     res.status(201).json({
       success: true,
@@ -111,10 +105,10 @@ router.post('/login', validateLogin, async (req, res) => {
   const { email, password } = req.body;
   
   try {
-    // Check for user using native driver
-    const userData = await userOperations.findByEmail(email);
+    // Check for user
+    const user = await User.findOne({ email }).select('+password').maxTimeMS(30000);
     
-    if (!userData) {
+    if (!user) {
       return res.status(401).json({
         success: false,
         error: 'Invalid credentials'
@@ -122,8 +116,7 @@ router.post('/login', validateLogin, async (req, res) => {
     }
     
     // Check if password matches
-    const bcrypt = require('bcryptjs');
-    const isMatch = await bcrypt.compare(password, userData.password);
+    const isMatch = await user.matchPassword(password);
     
     if (!isMatch) {
       return res.status(401).json({
@@ -133,25 +126,21 @@ router.post('/login', validateLogin, async (req, res) => {
     }
     
     // Update last login
-    await userOperations.updateById(userData._id, {
-      lastLogin: Date.now()
-    });
+    user.lastLogin = Date.now();
+    await user.save();
     
     // Create token
-    const jwt = require('jsonwebtoken');
-    const token = jwt.sign({ id: userData._id }, process.env.JWT_SECRET || 'secret', {
-      expiresIn: process.env.JWT_EXPIRE || '30d'
-    });
+    const token = user.getSignedJwtToken();
     
     res.status(200).json({
       success: true,
       token,
       user: {
-        id: userData._id,
-        name: userData.name,
-        email: userData.email,
-        role: userData.role,
-        isEmailVerified: userData.isEmailVerified
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        isEmailVerified: user.isEmailVerified
       }
     });
   } catch (err) {
