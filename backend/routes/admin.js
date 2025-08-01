@@ -1,10 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { protect, authorize } = require('../middleware/auth');
-const User = require('../models/User');
-const Profile = require('../models/Profile');
-const Card = require('../models/Card');
-const Analytics = require('../models/Analytics');
+const { adminOperations, userOperations } = require('../utils/dbOperations');
 
 // Get admin dashboard stats
 router.get('/dashboard', protect, authorize('admin'), async (req, res) => {
@@ -13,25 +10,17 @@ router.get('/dashboard', protect, authorize('admin'), async (req, res) => {
       totalUsers,
       totalProfiles,
       totalCards,
-      totalAnalytics
+      totalAnalytics,
+      recentUsers,
+      activeProfiles
     ] = await Promise.all([
-      User.countDocuments(),
-      Profile.countDocuments(),
-      Card.countDocuments(),
-      Analytics.countDocuments()
+      adminOperations.getUserCount(),
+      adminOperations.getProfileCount(),
+      adminOperations.getCardCount(),
+      adminOperations.getAnalyticsCount(),
+      adminOperations.getRecentUserCount(30),
+      adminOperations.getActiveProfileCount(30)
     ]);
-    
-    // Get recent registrations (last 30 days)
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    const recentUsers = await User.countDocuments({
-      createdAt: { $gte: thirtyDaysAgo }
-    });
-    
-    // Get active profiles (viewed in last 30 days)
-    const activeProfiles = await Analytics.distinct('profile', {
-      eventType: 'view',
-      timestamp: { $gte: thirtyDaysAgo }
-    }).countDocuments();
     
     res.status(200).json({
       success: true,
@@ -58,26 +47,13 @@ router.get('/users', protect, authorize('admin'), async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
-    const skip = (page - 1) * limit;
     
-    const users = await User.find()
-      .populate('subscription')
-      .select('-password')
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit);
-    
-    const total = await User.countDocuments();
+    const result = await adminOperations.getUsersWithPagination(page, limit);
     
     res.status(200).json({
       success: true,
-      data: users,
-      pagination: {
-        page,
-        limit,
-        total,
-        pages: Math.ceil(total / limit)
-      }
+      data: result.users,
+      pagination: result.pagination
     });
   } catch (err) {
     console.error(err);
@@ -93,26 +69,13 @@ router.get('/profiles', protect, authorize('admin'), async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
-    const skip = (page - 1) * limit;
     
-    const profiles = await Profile.find()
-      .populate('user', 'name email')
-      .populate('template', 'name')
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit);
-    
-    const total = await Profile.countDocuments();
+    const result = await adminOperations.getProfilesWithPagination(page, limit);
     
     res.status(200).json({
       success: true,
-      data: profiles,
-      pagination: {
-        page,
-        limit,
-        total,
-        pages: Math.ceil(total / limit)
-      }
+      data: result.profiles,
+      pagination: result.pagination
     });
   } catch (err) {
     console.error(err);
@@ -128,11 +91,8 @@ router.put('/users/:id', protect, authorize('admin'), async (req, res) => {
   try {
     const { role, isEmailVerified } = req.body;
     
-    const user = await User.findByIdAndUpdate(
-      req.params.id,
-      { role, isEmailVerified },
-      { new: true, runValidators: true }
-    ).select('-password');
+    await userOperations.updateById(req.params.id, { role, isEmailVerified });
+    const user = await userOperations.findById(req.params.id);
     
     if (!user) {
       return res.status(404).json({
@@ -141,9 +101,12 @@ router.put('/users/:id', protect, authorize('admin'), async (req, res) => {
       });
     }
     
+    // Remove password from response
+    const { password, ...userWithoutPassword } = user;
+    
     res.status(200).json({
       success: true,
-      data: user
+      data: userWithoutPassword
     });
   } catch (err) {
     console.error(err);
@@ -157,7 +120,7 @@ router.put('/users/:id', protect, authorize('admin'), async (req, res) => {
 // Delete user (admin only)
 router.delete('/users/:id', protect, authorize('admin'), async (req, res) => {
   try {
-    const user = await User.findByIdAndDelete(req.params.id);
+    const user = await userOperations.findById(req.params.id);
     
     if (!user) {
       return res.status(404).json({
@@ -166,9 +129,8 @@ router.delete('/users/:id', protect, authorize('admin'), async (req, res) => {
       });
     }
     
-    // Delete user's profiles and cards
-    await Profile.deleteMany({ user: req.params.id });
-    await Card.deleteMany({ user: req.params.id });
+    // Delete user and all associated data
+    await adminOperations.deleteUserAndData(req.params.id);
     
     res.status(200).json({
       success: true,

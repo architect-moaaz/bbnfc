@@ -1,7 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const Profile = require('../models/Profile');
-const Analytics = require('../models/Analytics');
+const { profileOperations, templateOperations, analyticsOperations } = require('../utils/dbOperations');
 
 // Helper function to detect device type
 const detectDevice = (userAgent) => {
@@ -43,10 +42,16 @@ router.get('/:profileId', async (req, res) => {
     const { source = 'direct', ref } = req.query;
     
     // Try to find by slug first, then by ID
-    let profile = await Profile.findOne({ slug: profileId }).populate('template');
+    let profile = await profileOperations.findBySlug(profileId);
     
     if (!profile) {
-      profile = await Profile.findById(profileId).populate('template');
+      profile = await profileOperations.findById(profileId);
+    }
+    
+    // Populate template data if it exists
+    if (profile && profile.template) {
+      const template = await templateOperations.findById(profile.template);
+      profile = { ...profile, template };
     }
     
     if (!profile || !profile.isActive) {
@@ -66,8 +71,10 @@ router.get('/:profileId', async (req, res) => {
     
     // Check if this session has already viewed this profile recently (within 1 hour)
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
-    const existingView = await Analytics.findOne({
-      profile: profile._id,
+    const { getDatabase, ObjectId } = require('../utils/mongodb');
+    const db = await getDatabase();
+    const existingView = await db.collection('analytics').findOne({
+      profile: new ObjectId(profile._id),
       eventType: 'view',
       'visitor.sessionId': sessionId,
       timestamp: { $gte: oneHourAgo }
@@ -77,7 +84,7 @@ router.get('/:profileId', async (req, res) => {
     if (!existingView) {
       // Create analytics entry for profile view
       try {
-        await Analytics.create({
+        await analyticsOperations.create({
           profile: profile._id,
           user: profile.user,
           eventType: 'view',
@@ -102,8 +109,11 @@ router.get('/:profileId', async (req, res) => {
         });
         
         // Also increment legacy view count on profile only for new sessions
-        profile.analytics.views += 1;
-        await profile.save();
+        const updatedAnalytics = {
+          ...profile.analytics,
+          views: (profile.analytics?.views || 0) + 1
+        };
+        await profileOperations.updateById(profile._id, { analytics: updatedAnalytics });
       } catch (analyticsError) {
         console.error('Analytics tracking failed:', analyticsError);
         // Don't fail the request if analytics fails
@@ -129,13 +139,11 @@ router.post('/:profileId/analytics', async (req, res) => {
     const { profileId } = req.params;
     const { eventType, eventData, visitor } = req.body;
     
-    // Find profile
-    const profile = await Profile.findOne({
-      $or: [
-        { slug: profileId },
-        { _id: profileId }
-      ]
-    });
+    // Find profile by slug or ID
+    let profile = await profileOperations.findBySlug(profileId);
+    if (!profile) {
+      profile = await profileOperations.findById(profileId);
+    }
     
     if (!profile) {
       return res.status(404).json({
@@ -153,7 +161,7 @@ router.post('/:profileId/analytics', async (req, res) => {
     const deviceInfo = parseUserAgent(userAgent);
     
     // Create analytics entry
-    const analyticsEntry = await Analytics.create({
+    const analyticsEntry = await analyticsOperations.create({
       profile: profile._id,
       user: profile.user,
       eventType: eventType,
@@ -176,23 +184,24 @@ router.post('/:profileId/analytics', async (req, res) => {
     });
 
     // Update legacy counters on profile
+    const updatedAnalytics = { ...profile.analytics };
     switch (eventType) {
       case 'tap':
-        profile.analytics.cardTaps += 1;
+        updatedAnalytics.cardTaps = (updatedAnalytics.cardTaps || 0) + 1;
         break;
       case 'download':
-        profile.analytics.contactDownloads += 1;
+        updatedAnalytics.contactDownloads = (updatedAnalytics.contactDownloads || 0) + 1;
         break;
       case 'click':
         const element = eventData?.elementClicked || 'unknown';
-        if (!profile.analytics.linkClicks) {
-          profile.analytics.linkClicks = new Map();
+        if (!updatedAnalytics.linkClicks) {
+          updatedAnalytics.linkClicks = {};
         }
-        profile.analytics.linkClicks.set(element, (profile.analytics.linkClicks.get(element) || 0) + 1);
+        updatedAnalytics.linkClicks[element] = (updatedAnalytics.linkClicks[element] || 0) + 1;
         break;
     }
     
-    await profile.save();
+    await profileOperations.updateById(profile._id, { analytics: updatedAnalytics });
     
     res.status(200).json({
       success: true,
@@ -215,13 +224,11 @@ router.get('/:profileId/vcard', async (req, res) => {
   try {
     const { profileId } = req.params;
     
-    // Find profile
-    const profile = await Profile.findOne({
-      $or: [
-        { slug: profileId },
-        { _id: profileId }
-      ]
-    });
+    // Find profile by slug or ID
+    let profile = await profileOperations.findBySlug(profileId);
+    if (!profile) {
+      profile = await profileOperations.findById(profileId);
+    }
     
     if (!profile || !profile.isActive) {
       return res.status(404).json({
@@ -237,7 +244,7 @@ router.get('/:profileId/vcard', async (req, res) => {
     const deviceInfo = parseUserAgent(userAgent);
     
     try {
-      await Analytics.create({
+      await analyticsOperations.create({
         profile: profile._id,
         user: profile.user,
         eventType: 'download',
@@ -261,8 +268,11 @@ router.get('/:profileId/vcard', async (req, res) => {
       });
       
       // Also increment the profile's contact download counter
-      profile.analytics.contactDownloads += 1;
-      await profile.save();
+      const updatedAnalytics = {
+        ...profile.analytics,
+        contactDownloads: (profile.analytics?.contactDownloads || 0) + 1
+      };
+      await profileOperations.updateById(profile._id, { analytics: updatedAnalytics });
       
     } catch (analyticsError) {
       console.error('Analytics tracking failed:', analyticsError);

@@ -1,16 +1,16 @@
 const express = require('express');
 const router = express.Router();
 const { protect } = require('../middleware/auth');
-const Subscription = require('../models/Subscription');
+const { subscriptionOperations } = require('../utils/dbOperations');
 
 // Get subscription plans
 router.get('/plans', async (req, res) => {
   try {
     const plans = {
-      free: Subscription.getPlanDetails('free'),
-      basic: Subscription.getPlanDetails('basic'),
-      pro: Subscription.getPlanDetails('pro'),
-      enterprise: Subscription.getPlanDetails('enterprise')
+      free: subscriptionOperations.getPlanDetails('free'),
+      basic: subscriptionOperations.getPlanDetails('basic'),
+      pro: subscriptionOperations.getPlanDetails('pro'),
+      enterprise: subscriptionOperations.getPlanDetails('enterprise')
     };
     
     res.status(200).json({
@@ -29,7 +29,7 @@ router.get('/plans', async (req, res) => {
 // Get user subscription
 router.get('/current', protect, async (req, res) => {
   try {
-    const subscription = await Subscription.findOne({ user: req.user.id });
+    const subscription = await subscriptionOperations.findByUserId(req.user._id);
     
     if (!subscription) {
       return res.status(404).json({
@@ -64,15 +64,16 @@ router.post('/upgrade', protect, async (req, res) => {
       });
     }
     
-    const subscription = await Subscription.findOne({ user: req.user.id });
-    const planDetails = Subscription.getPlanDetails(plan);
+    const planDetails = subscriptionOperations.getPlanDetails(plan);
     
-    subscription.plan = plan;
-    subscription.features = planDetails.features;
-    subscription.billing.amount = planDetails.price;
-    subscription.status = 'active';
+    const updates = {
+      plan: plan,
+      features: planDetails.features,
+      status: 'active'
+    };
     
-    await subscription.save();
+    await subscriptionOperations.updateByUserId(req.user._id, updates);
+    const subscription = await subscriptionOperations.findByUserId(req.user._id);
     
     res.status(200).json({
       success: true,
@@ -90,10 +91,7 @@ router.post('/upgrade', protect, async (req, res) => {
 // Cancel subscription
 router.post('/cancel', protect, async (req, res) => {
   try {
-    const subscription = await Subscription.findOne({ user: req.user.id });
-    
-    subscription.cancelAtPeriodEnd = true;
-    await subscription.save();
+    await subscriptionOperations.updateByUserId(req.user._id, { cancelAtPeriodEnd: true });
     
     res.status(200).json({
       success: true,

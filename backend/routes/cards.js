@@ -1,20 +1,28 @@
 const express = require('express');
 const router = express.Router();
 const { protect } = require('../middleware/auth');
-const Card = require('../models/Card');
-const Profile = require('../models/Profile');
+const { cardOperations, profileOperations } = require('../utils/dbOperations');
 
 // Get all user cards
 router.get('/', protect, async (req, res) => {
   try {
-    const cards = await Card.find({ user: req.user.id })
-      .populate('profile')
-      .sort({ createdAt: -1 });
+    const cards = await cardOperations.findByUserId(req.user._id);
+    
+    // Populate profile data for each card
+    const cardsWithProfiles = await Promise.all(
+      cards.map(async (card) => {
+        if (card.profile) {
+          const profile = await profileOperations.findById(card.profile);
+          return { ...card, profile };
+        }
+        return card;
+      })
+    );
     
     res.status(200).json({
       success: true,
-      count: cards.length,
-      data: cards
+      count: cardsWithProfiles.length,
+      data: cardsWithProfiles
     });
   } catch (err) {
     console.error(err);
@@ -41,20 +49,17 @@ router.post('/', protect, async (req, res) => {
     // }
     
     // Verify profile exists and belongs to user
-    const profile = await Profile.findOne({
-      _id: profileId,
-      user: req.user.id
-    });
+    const profile = await profileOperations.findById(profileId);
     
-    if (!profile) {
+    if (!profile || profile.user.toString() !== req.user._id.toString()) {
       return res.status(400).json({
         success: false,
         error: 'Profile not found or unauthorized'
       });
     }
     
-    const card = await Card.create({
-      user: req.user.id,
+    const card = await cardOperations.create({
+      user: req.user._id,
       profile: profileId,
       chipType,
       serialNumber,
@@ -67,11 +72,12 @@ router.post('/', protect, async (req, res) => {
     // user.subscription.usage.cardsActivated += 1;
     // await user.subscription.save();
     
-    await card.populate('profile');
+    // Add profile data to response
+    const cardWithProfile = { ...card, profile };
     
     res.status(201).json({
       success: true,
-      data: card
+      data: cardWithProfile
     });
   } catch (err) {
     console.error(err);
@@ -86,7 +92,7 @@ router.post('/', protect, async (req, res) => {
 router.put('/:id', protect, async (req, res) => {
   try {
     // First check if card exists and belongs to user
-    const existingCard = await Card.findById(req.params.id);
+    const existingCard = await cardOperations.findById(req.params.id);
     
     if (!existingCard) {
       return res.status(404).json({
@@ -95,7 +101,7 @@ router.put('/:id', protect, async (req, res) => {
       });
     }
     
-    if (existingCard.user.toString() !== req.user.id && req.user.role !== 'admin') {
+    if (existingCard.user.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
       return res.status(403).json({
         success: false,
         error: 'Not authorized to update this card'
@@ -112,12 +118,9 @@ router.put('/:id', protect, async (req, res) => {
     
     // If changing profile, verify it belongs to user
     if (profileId) {
-      const profile = await Profile.findOne({
-        _id: profileId,
-        user: req.user.id
-      });
+      const profile = await profileOperations.findById(profileId);
       
-      if (!profile) {
+      if (!profile || profile.user.toString() !== req.user._id.toString()) {
         return res.status(400).json({
           success: false,
           error: 'Profile not found or unauthorized'
@@ -129,15 +132,19 @@ router.put('/:id', protect, async (req, res) => {
       updateData.qrCodeUrl = profile.qrCode;
     }
     
-    const card = await Card.findByIdAndUpdate(
-      req.params.id,
-      updateData,
-      { new: true, runValidators: true }
-    ).populate('profile');
+    await cardOperations.updateById(req.params.id, updateData);
+    const card = await cardOperations.findById(req.params.id);
+    
+    // Populate profile data
+    let cardWithProfile = card;
+    if (card.profile) {
+      const profile = await profileOperations.findById(card.profile);
+      cardWithProfile = { ...card, profile };
+    }
     
     res.status(200).json({
       success: true,
-      data: card
+      data: cardWithProfile
     });
   } catch (err) {
     console.error(err);
@@ -152,7 +159,7 @@ router.put('/:id', protect, async (req, res) => {
 router.delete('/:id', protect, async (req, res) => {
   try {
     // First check if card exists and belongs to user
-    const card = await Card.findById(req.params.id);
+    const card = await cardOperations.findById(req.params.id);
     
     if (!card) {
       return res.status(404).json({
@@ -161,14 +168,14 @@ router.delete('/:id', protect, async (req, res) => {
       });
     }
     
-    if (card.user.toString() !== req.user.id && req.user.role !== 'admin') {
+    if (card.user.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
       return res.status(403).json({
         success: false,
         error: 'Not authorized to delete this card'
       });
     }
     
-    await Card.findByIdAndDelete(req.params.id);
+    await cardOperations.deleteById(req.params.id);
     
     res.status(200).json({
       success: true,
@@ -186,7 +193,7 @@ router.delete('/:id', protect, async (req, res) => {
 // Get card analytics
 router.get('/:id/analytics', protect, async (req, res) => {
   try {
-    const card = await Card.findById(req.params.id);
+    const card = await cardOperations.findById(req.params.id);
     
     if (!card) {
       return res.status(404).json({
@@ -195,7 +202,7 @@ router.get('/:id/analytics', protect, async (req, res) => {
       });
     }
     
-    if (card.user.toString() !== req.user.id && req.user.role !== 'admin') {
+    if (card.user.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
       return res.status(403).json({
         success: false,
         error: 'Not authorized to access this card analytics'

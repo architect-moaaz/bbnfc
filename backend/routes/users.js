@@ -1,18 +1,15 @@
 const express = require('express');
 const router = express.Router();
 const { protect } = require('../middleware/auth');
-const User = require('../models/User');
+const { userOperations } = require('../utils/dbOperations');
 
 // Update user profile
 router.put('/profile', protect, async (req, res) => {
   try {
     const { name, avatar } = req.body;
     
-    const user = await User.findByIdAndUpdate(
-      req.user.id,
-      { name, avatar },
-      { new: true, runValidators: true }
-    );
+    await userOperations.updateById(req.user._id, { name, avatar });
+    const user = await userOperations.findById(req.user._id);
     
     res.status(200).json({
       success: true,
@@ -30,7 +27,14 @@ router.put('/profile', protect, async (req, res) => {
 // Delete user account
 router.delete('/account', protect, async (req, res) => {
   try {
-    await User.findByIdAndDelete(req.user.id);
+    const { getDatabase, ObjectId } = require('../utils/mongodb');
+    const db = await getDatabase();
+    
+    // Delete user and related data
+    await db.collection('users').deleteOne({ _id: new ObjectId(req.user._id) });
+    await db.collection('profiles').deleteMany({ user: new ObjectId(req.user._id) });
+    await db.collection('analytics').deleteMany({ user: new ObjectId(req.user._id) });
+    await db.collection('subscriptions').deleteMany({ user: new ObjectId(req.user._id) });
     
     res.status(200).json({
       success: true,

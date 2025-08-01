@@ -27,9 +27,7 @@ exports.protect = async (req, res, next) => {
       });
     }
     
-    console.log('Auth middleware - user object:', req.user);
-    console.log('Auth middleware - user _id:', req.user._id);
-    console.log('Auth middleware - user constructor:', req.user.constructor.name);
+    // User authenticated successfully
     
     next();
   } catch (err) {

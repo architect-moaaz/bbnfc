@@ -69,19 +69,19 @@ app.get('/api/test-db', async (req, res) => {
 
 // No middleware needed with native driver - connections are handled per request
 
-// Routes - only load native MongoDB driver compatible routes for now
+// Routes - all updated to native MongoDB driver
 app.use('/api/auth', require('../backend/routes/auth'));
-// app.use('/api/users', require('../backend/routes/users')); // TODO: Update to native driver
+app.use('/api/users', require('../backend/routes/users')); // ✅ Updated to native driver
 app.use('/api/profiles', require('../backend/routes/profiles'));
-// app.use('/api/cards', require('../backend/routes/cards')); // TODO: Update to native driver
-// app.use('/api/analytics', require('../backend/routes/analytics')); // TODO: Update to native driver
-// app.use('/api/templates', require('../backend/routes/templates')); // TODO: Update to native driver
-// app.use('/api/subscriptions', require('../backend/routes/subscriptions')); // TODO: Update to native driver
-// app.use('/api/admin', require('../backend/routes/admin')); // TODO: Update to native driver
-// app.use('/api/upload', require('../backend/routes/upload')); // TODO: Update to native driver
+app.use('/api/cards', require('../backend/routes/cards')); // ✅ Updated to native driver
+app.use('/api/analytics', require('../backend/routes/analytics')); // ✅ Updated to native driver
+app.use('/api/templates', require('../backend/routes/templates')); // ✅ Updated to native driver
+app.use('/api/subscriptions', require('../backend/routes/subscriptions')); // ✅ Updated to native driver
+app.use('/api/admin', require('../backend/routes/admin')); // ✅ Updated to native driver
+app.use('/api/upload', require('../backend/routes/upload')); // ✅ Compatible with native driver
 
 // Public profile access routes
-// app.use('/p', require('../backend/routes/public')); // TODO: Update to native driver
+app.use('/p', require('../backend/routes/public')); // ✅ Updated to native driver
 
 
 // Error handling middleware
@@ -100,5 +100,15 @@ app.use('/api/*', (req, res) => {
     error: 'API endpoint not found' 
   });
 });
+
+// Start server if this file is run directly (not imported)
+if (require.main === module) {
+  const PORT = process.env.PORT || 5000;
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT} with native MongoDB driver`);
+    console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`MongoDB URI: ${process.env.MONGODB_URI ? 'configured' : 'missing'}`);
+  });
+}
 
 module.exports = app;

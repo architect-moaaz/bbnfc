@@ -77,12 +77,7 @@ router.get('/:id', protect, async (req, res) => {
 
 // Create new profile
 router.post('/', protect, async (req, res) => {
-  console.log('===== PROFILES POST ROUTE HIT =====');
   try {
-    console.log('Creating profile with data:', JSON.stringify(req.body, null, 2));
-    console.log('User from middleware:', req.user);
-    console.log('User ID:', req.user._id);
-    console.log('About to call profileOperations.create...');
     const {
       personalInfo,
       contactInfo,
@@ -141,7 +136,6 @@ router.post('/', protect, async (req, res) => {
       slug = `profile-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     }
     
-    console.log('Calling profileOperations.create with templateId:', templateId);
     const profile = await profileOperations.create({
       user: req.user._id,
       slug,
@@ -156,7 +150,6 @@ router.post('/', protect, async (req, res) => {
       analytics: req.body.analytics,
       isActive: req.body.isActive
     });
-    console.log('Profile created successfully:', profile._id);
     
     // Generate QR code after slug is created
     if (profile.slug) {

@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { protect, authorize } = require('../middleware/auth');
-const Template = require('../models/Template');
+const { templateOperations } = require('../utils/dbOperations');
 
 // Get all templates
 router.get('/', async (req, res) => {
@@ -12,7 +12,7 @@ router.get('/', async (req, res) => {
     if (category) filter.category = category;
     if (isPremium !== undefined) filter.isPremium = isPremium === 'true';
     
-    const templates = await Template.find(filter).sort({ usageCount: -1 });
+    const templates = await templateOperations.find(filter, { usageCount: -1 });
     
     res.status(200).json({
       success: true,
@@ -31,7 +31,7 @@ router.get('/', async (req, res) => {
 // Get single template
 router.get('/:id', async (req, res) => {
   try {
-    const template = await Template.findById(req.params.id);
+    const template = await templateOperations.findById(req.params.id);
     
     if (!template) {
       return res.status(404).json({
@@ -56,9 +56,9 @@ router.get('/:id', async (req, res) => {
 // Create template (admin only)
 router.post('/', protect, authorize('admin'), async (req, res) => {
   try {
-    const template = await Template.create({
+    const template = await templateOperations.create({
       ...req.body,
-      createdBy: req.user.id
+      createdBy: req.user._id
     });
     
     res.status(201).json({
@@ -77,11 +77,8 @@ router.post('/', protect, authorize('admin'), async (req, res) => {
 // Update template (admin only)
 router.put('/:id', protect, authorize('admin'), async (req, res) => {
   try {
-    const template = await Template.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { new: true, runValidators: true }
-    );
+    await templateOperations.updateById(req.params.id, req.body);
+    const template = await templateOperations.findById(req.params.id);
     
     if (!template) {
       return res.status(404).json({
@@ -106,7 +103,7 @@ router.put('/:id', protect, authorize('admin'), async (req, res) => {
 // Delete template (admin only)
 router.delete('/:id', protect, authorize('admin'), async (req, res) => {
   try {
-    const template = await Template.findByIdAndDelete(req.params.id);
+    const template = await templateOperations.findById(req.params.id);
     
     if (!template) {
       return res.status(404).json({
@@ -114,6 +111,8 @@ router.delete('/:id', protect, authorize('admin'), async (req, res) => {
         error: 'Template not found'
       });
     }
+    
+    await templateOperations.deleteById(req.params.id);
     
     res.status(200).json({
       success: true,

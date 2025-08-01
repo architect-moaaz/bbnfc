@@ -1,8 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { protect } = require('../middleware/auth');
-const Analytics = require('../models/Analytics');
-const Profile = require('../models/Profile');
+const { profileOperations, analyticsOperations } = require('../utils/dbOperations');
 
 // Helper function to format time ago
 const formatTimeAgo = (date) => {
@@ -29,7 +28,7 @@ const formatTimeAgo = (date) => {
   }
 };
 
-// Record analytics event
+// Record analytics event (public endpoint for tracking profile views)
 router.post('/event', async (req, res) => {
   try {
     const {
@@ -41,7 +40,7 @@ router.post('/event', async (req, res) => {
     } = req.body;
     
     // Verify profile exists
-    const profile = await Profile.findById(profileId);
+    const profile = await profileOperations.findById(profileId);
     if (!profile) {
       return res.status(404).json({
         success: false,
@@ -50,7 +49,7 @@ router.post('/event', async (req, res) => {
     }
     
     // Create analytics event
-    await Analytics.create({
+    await analyticsOperations.create({
       profile: profileId,
       user: profile.user,
       eventType,
@@ -60,24 +59,30 @@ router.post('/event', async (req, res) => {
     });
     
     // Update profile analytics counters
+    const currentAnalytics = profile.analytics || {
+      views: 0,
+      uniqueViews: 0,
+      clicks: 0,
+      shares: 0,
+      cardTaps: 0,
+      contactDownloads: 0
+    };
+    
     if (eventType === 'view') {
-      profile.analytics.views += 1;
-      // Check if unique visitor (simple session-based check)
-      if (visitor.sessionId && !profile.analytics.uniqueViews) {
-        profile.analytics.uniqueViews = 1;
+      currentAnalytics.views += 1;
+      // Simple unique visitor check
+      if (visitor.sessionId) {
+        currentAnalytics.uniqueViews += 1;
       }
     } else if (eventType === 'tap') {
-      profile.analytics.cardTaps += 1;
+      currentAnalytics.cardTaps += 1;
     } else if (eventType === 'download') {
-      profile.analytics.contactDownloads += 1;
-    } else if (eventType === 'click' && eventData.elementClicked) {
-      const clicks = profile.analytics.linkClicks || new Map();
-      const currentCount = clicks.get(eventData.elementClicked) || 0;
-      clicks.set(eventData.elementClicked, currentCount + 1);
-      profile.analytics.linkClicks = clicks;
+      currentAnalytics.contactDownloads += 1;
+    } else if (eventType === 'click') {
+      currentAnalytics.clicks += 1;
     }
     
-    await profile.save();
+    await profileOperations.updateById(profileId, { analytics: currentAnalytics });
     
     res.status(201).json({
       success: true,
@@ -98,11 +103,9 @@ router.get('/dashboard', protect, async (req, res) => {
     const { timeRange = 'month' } = req.query;
     
     // Get all user profiles with full data
-    const profiles = await Profile.find({ user: req.user.id })
-      .select('personalInfo analytics createdAt updatedAt isActive slug')
-      .sort({ updatedAt: -1 });
+    const profiles = await profileOperations.findByUserId(req.user._id);
     
-    const profileIds = profiles.map(p => p._id);
+    const profileIds = profiles.map(p => p._id.toString());
     
     // Calculate profile totals from legacy counters
     const totalProfiles = profiles.length;
@@ -128,18 +131,12 @@ router.get('/dashboard', protect, async (req, res) => {
     }
     
     // Get recent activity for the time range
-    const recentActivity = await Analytics.find({
-      profile: { $in: profileIds }
-    })
-    .sort({ timestamp: -1 })
-    .limit(10)
-    .populate('profile', 'personalInfo slug')
-    .lean();
+    const recentActivity = await analyticsOperations.findByProfileIds(profileIds, 10);
 
     // Format recent profiles with actual data
     const recentProfiles = profiles.slice(0, 5).map(profile => ({
       id: profile._id,
-      name: `${profile.personalInfo.firstName} ${profile.personalInfo.lastName}${profile.personalInfo.title ? ' - ' + profile.personalInfo.title : ''}`,
+      name: `${profile.personalInfo?.firstName || ''} ${profile.personalInfo?.lastName || ''}${profile.personalInfo?.title ? ' - ' + profile.personalInfo.title : ''}`.trim(),
       views: profile.analytics?.views || 0,
       taps: profile.analytics?.cardTaps || 0,
       status: profile.isActive ? 'active' : 'draft',
@@ -149,8 +146,10 @@ router.get('/dashboard', protect, async (req, res) => {
 
     // Format recent activity with readable messages
     const formattedActivity = recentActivity.map(activity => {
-      const profileName = activity.profile ? 
-        `${activity.profile.personalInfo.firstName} ${activity.profile.personalInfo.lastName}${activity.profile.personalInfo.title ? ' - ' + activity.profile.personalInfo.title : ''}` : 
+      // Find the profile for this activity
+      const activityProfile = profiles.find(p => p._id.toString() === activity.profile.toString());
+      const profileName = activityProfile ? 
+        `${activityProfile.personalInfo?.firstName || ''} ${activityProfile.personalInfo?.lastName || ''}${activityProfile.personalInfo?.title ? ' - ' + activityProfile.personalInfo.title : ''}`.trim() : 
         'Unknown Profile';
       
       let message = '';
@@ -189,7 +188,7 @@ router.get('/dashboard', protect, async (req, res) => {
       totalProfiles,
       totalViews,
       totalTaps,
-      totalShares: profiles.reduce((sum, p) => sum + (p.analytics?.linkClicks?.size || 0), 0)
+      totalShares: profiles.reduce((sum, p) => sum + (p.analytics?.shares || 0), 0)
     };
 
     res.status(200).json({
