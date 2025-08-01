@@ -153,11 +153,24 @@ router.post('/login', validateLogin, async (req, res) => {
 // Get current logged in user
 router.get('/me', protect, async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).populate('subscription');
+    const user = await userOperations.findById(req.user.id);
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: 'User not found'
+      });
+    }
+
+    // Get subscription data
+    const subscription = await subscriptionOperations.findByUserId(user._id);
     
     res.status(200).json({
       success: true,
-      data: user
+      data: {
+        ...user,
+        subscription: subscription
+      }
     });
   } catch (err) {
     console.error(err);
@@ -173,7 +186,7 @@ router.post('/forgotpassword', async (req, res) => {
   const { email } = req.body;
   
   try {
-    const user = await User.findOne({ email });
+    const user = await userOperations.findByEmail(email);
     
     if (!user) {
       return res.status(404).json({
@@ -183,8 +196,11 @@ router.post('/forgotpassword', async (req, res) => {
     }
     
     // Get reset token
-    const resetToken = user.getResetPasswordToken();
-    await user.save({ validateBeforeSave: false });
+    const { token: resetToken, hashedToken } = userOperations.generateVerificationToken();
+    await userOperations.updateById(user._id, {
+      passwordResetToken: hashedToken,
+      passwordResetExpire: Date.now() + 10 * 60 * 1000 // 10 minutes
+    });
     
     // Create reset url
     const resetUrl = `${process.env.FRONTEND_URL}/resetpassword/${resetToken}`;
@@ -204,10 +220,14 @@ router.post('/forgotpassword', async (req, res) => {
       });
     } catch (err) {
       console.error(err);
-      user.passwordResetToken = undefined;
-      user.passwordResetExpire = undefined;
       
-      await user.save({ validateBeforeSave: false });
+      // Clear reset token if email failed
+      await userOperations.updateById(user._id, {
+        $unset: {
+          passwordResetToken: "",
+          passwordResetExpire: ""
+        }
+      });
       
       return res.status(500).json({
         success: false,
@@ -232,10 +252,7 @@ router.put('/resetpassword/:resettoken', async (req, res) => {
     .digest('hex');
   
   try {
-    const user = await User.findOne({
-      passwordResetToken,
-      passwordResetExpire: { $gt: Date.now() }
-    });
+    const user = await userOperations.findByResetToken(passwordResetToken);
     
     if (!user) {
       return res.status(400).json({
@@ -245,12 +262,9 @@ router.put('/resetpassword/:resettoken', async (req, res) => {
     }
     
     // Set new password
-    user.password = req.body.password;
-    user.passwordResetToken = undefined;
-    user.passwordResetExpire = undefined;
-    await user.save();
+    await userOperations.updatePassword(user._id, req.body.password);
     
-    const token = user.getSignedJwtToken();
+    const token = userOperations.generateJwtToken(user._id);
     
     res.status(200).json({
       success: true,
@@ -273,10 +287,7 @@ router.get('/verifyemail/:token', async (req, res) => {
     .digest('hex');
   
   try {
-    const user = await User.findOne({
-      emailVerificationToken,
-      emailVerificationExpire: { $gt: Date.now() }
-    });
+    const user = await userOperations.findByVerificationToken(emailVerificationToken);
     
     if (!user) {
       return res.status(400).json({
@@ -285,10 +296,13 @@ router.get('/verifyemail/:token', async (req, res) => {
       });
     }
     
-    user.isEmailVerified = true;
-    user.emailVerificationToken = undefined;
-    user.emailVerificationExpire = undefined;
-    await user.save();
+    await userOperations.updateById(user._id, {
+      isEmailVerified: true,
+      $unset: {
+        emailVerificationToken: "",
+        emailVerificationExpire: ""
+      }
+    });
     
     res.status(200).json({
       success: true,
@@ -306,20 +320,29 @@ router.get('/verifyemail/:token', async (req, res) => {
 // Update password
 router.put('/updatepassword', protect, async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select('+password');
+    const user = await userOperations.findById(req.user.id);
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: 'User not found'
+      });
+    }
     
     // Check current password
-    if (!(await user.matchPassword(req.body.currentPassword))) {
+    const isCurrentPasswordValid = await userOperations.comparePassword(req.body.currentPassword, user.password);
+    
+    if (!isCurrentPasswordValid) {
       return res.status(401).json({
         success: false,
         error: 'Current password is incorrect'
       });
     }
     
-    user.password = req.body.newPassword;
-    await user.save();
+    // Update password
+    await userOperations.updatePassword(user._id, req.body.newPassword);
     
-    const token = user.getSignedJwtToken();
+    const token = userOperations.generateJwtToken(user._id);
     
     res.status(200).json({
       success: true,

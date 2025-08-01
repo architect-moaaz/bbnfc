@@ -15,6 +15,22 @@ const userOperations = {
     return await db.collection('users').findOne({ _id: new ObjectId(userId) });
   },
 
+  async findByResetToken(token) {
+    const db = await getDatabase();
+    return await db.collection('users').findOne({
+      passwordResetToken: token,
+      passwordResetExpire: { $gt: new Date() }
+    });
+  },
+
+  async findByVerificationToken(token) {
+    const db = await getDatabase();
+    return await db.collection('users').findOne({
+      emailVerificationToken: token,
+      emailVerificationExpire: { $gt: new Date() }
+    });
+  },
+
   async create(userData) {
     const db = await getDatabase();
     
@@ -77,6 +93,28 @@ const userOperations = {
       .digest('hex');
     
     return { token, hashedToken };
+  },
+
+  async updatePassword(userId, newPassword) {
+    const db = await getDatabase();
+    
+    // Hash the new password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(newPassword, salt);
+    
+    const result = await db.collection('users').updateOne(
+      { _id: new ObjectId(userId) },
+      { 
+        $set: { 
+          password: hashedPassword 
+        },
+        $unset: {
+          passwordResetToken: "",
+          passwordResetExpire: ""
+        }
+      }
+    );
+    return result;
   }
 };
 
@@ -163,7 +201,106 @@ const subscriptionOperations = {
   }
 };
 
+// Profile operations
+const profileOperations = {
+  async create(profileData) {
+    const db = await getDatabase();
+    
+    const profileDoc = {
+      _id: createObjectId(),
+      user: new ObjectId(profileData.user),
+      slug: profileData.slug,
+      personalInfo: profileData.personalInfo || {},
+      contactInfo: profileData.contactInfo || {},
+      socialLinks: profileData.socialLinks || {},
+      businessHours: profileData.businessHours || [],
+      template: profileData.template ? new ObjectId(profileData.template) : null,
+      customization: profileData.customization || {},
+      sections: profileData.sections || {},
+      callToAction: profileData.callToAction || null,
+      analytics: profileData.analytics || {
+        views: 0,
+        uniqueViews: 0,
+        clicks: 0,
+        shares: 0
+      },
+      isActive: profileData.isActive !== undefined ? profileData.isActive : true,
+      qrCode: profileData.qrCode || null,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+
+    const result = await db.collection('profiles').insertOne(profileDoc);
+    
+    if (!result.acknowledged) {
+      throw new Error('Failed to create profile');
+    }
+
+    return profileDoc;
+  },
+
+  async findById(profileId) {
+    const db = await getDatabase();
+    return await db.collection('profiles').findOne({ _id: new ObjectId(profileId) });
+  },
+
+  async findBySlug(slug) {
+    const db = await getDatabase();
+    return await db.collection('profiles').findOne({ slug: slug });
+  },
+
+  async findByUserId(userId) {
+    const db = await getDatabase();
+    return await db.collection('profiles').find({ user: new ObjectId(userId) }).sort({ createdAt: -1 }).toArray();
+  },
+
+  async updateById(profileId, updates) {
+    const db = await getDatabase();
+    const updateDoc = { 
+      ...updates,
+      updatedAt: new Date()
+    };
+    
+    // Handle ObjectId fields
+    if (updates.template) {
+      updateDoc.template = new ObjectId(updates.template);
+    }
+    
+    const result = await db.collection('profiles').updateOne(
+      { _id: new ObjectId(profileId) },
+      { $set: updateDoc }
+    );
+    return result;
+  },
+
+  async deleteById(profileId) {
+    const db = await getDatabase();
+    const result = await db.collection('profiles').deleteOne({ _id: new ObjectId(profileId) });
+    return result;
+  }
+};
+
+// Template operations
+const templateOperations = {
+  async findById(templateId) {
+    const db = await getDatabase();
+    return await db.collection('templates').findOne({ _id: new ObjectId(templateId) });
+  },
+
+  async findBySlug(slug) {
+    const db = await getDatabase();
+    return await db.collection('templates').findOne({ slug: slug });
+  },
+
+  async findOne(query = {}) {
+    const db = await getDatabase();
+    return await db.collection('templates').findOne(query);
+  }
+};
+
 module.exports = {
   userOperations,
-  subscriptionOperations
+  subscriptionOperations,
+  profileOperations,
+  templateOperations
 };

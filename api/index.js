@@ -69,19 +69,19 @@ app.get('/api/test-db', async (req, res) => {
 
 // No middleware needed with native driver - connections are handled per request
 
-// Routes
+// Routes - only load native MongoDB driver compatible routes for now
 app.use('/api/auth', require('../backend/routes/auth'));
-app.use('/api/users', require('../backend/routes/users'));
+// app.use('/api/users', require('../backend/routes/users')); // TODO: Update to native driver
 app.use('/api/profiles', require('../backend/routes/profiles'));
-app.use('/api/cards', require('../backend/routes/cards'));
-app.use('/api/analytics', require('../backend/routes/analytics'));
-app.use('/api/templates', require('../backend/routes/templates'));
-app.use('/api/subscriptions', require('../backend/routes/subscriptions'));
-app.use('/api/admin', require('../backend/routes/admin'));
-app.use('/api/upload', require('../backend/routes/upload'));
+// app.use('/api/cards', require('../backend/routes/cards')); // TODO: Update to native driver
+// app.use('/api/analytics', require('../backend/routes/analytics')); // TODO: Update to native driver
+// app.use('/api/templates', require('../backend/routes/templates')); // TODO: Update to native driver
+// app.use('/api/subscriptions', require('../backend/routes/subscriptions')); // TODO: Update to native driver
+// app.use('/api/admin', require('../backend/routes/admin')); // TODO: Update to native driver
+// app.use('/api/upload', require('../backend/routes/upload')); // TODO: Update to native driver
 
 // Public profile access routes
-app.use('/p', require('../backend/routes/public'));
+// app.use('/p', require('../backend/routes/public')); // TODO: Update to native driver
 
 
 // Error handling middleware

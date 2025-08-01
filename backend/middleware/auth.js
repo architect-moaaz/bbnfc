@@ -1,6 +1,5 @@
 const jwt = require('jsonwebtoken');
-const mongoose = require('mongoose');
-const User = require('../models/User');
+const { userOperations } = require('../utils/dbOperations');
 
 // Protect routes
 exports.protect = async (req, res, next) => {
@@ -19,7 +18,7 @@ exports.protect = async (req, res, next) => {
   
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = await User.findById(decoded.id);
+    req.user = await userOperations.findById(decoded.id);
     
     if (!req.user) {
       return res.status(401).json({
@@ -27,6 +26,10 @@ exports.protect = async (req, res, next) => {
         error: 'User not found'
       });
     }
+    
+    console.log('Auth middleware - user object:', req.user);
+    console.log('Auth middleware - user _id:', req.user._id);
+    console.log('Auth middleware - user constructor:', req.user.constructor.name);
     
     next();
   } catch (err) {
@@ -50,11 +53,13 @@ exports.authorize = (...roles) => {
   };
 };
 
-// Check if user owns the resource
-exports.checkOwnership = (model) => {
+// Check if user owns the resource - updated for native MongoDB
+exports.checkOwnership = (collectionName) => {
   return async (req, res, next) => {
     try {
-      const resource = await model.findById(req.params.id);
+      const { getDatabase, ObjectId } = require('../utils/mongodb');
+      const db = await getDatabase();
+      const resource = await db.collection(collectionName).findOne({ _id: new ObjectId(req.params.id) });
       
       if (!resource) {
         return res.status(404).json({
@@ -64,7 +69,7 @@ exports.checkOwnership = (model) => {
       }
       
       // Check if user owns the resource or is admin
-      if (resource.user.toString() !== req.user.id && req.user.role !== 'admin') {
+      if (resource.user.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
         return res.status(403).json({
           success: false,
           error: 'Not authorized to access this resource'
