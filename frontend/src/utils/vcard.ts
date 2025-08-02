@@ -51,6 +51,19 @@ export interface VCardData {
 }
 
 /**
+ * Escapes special characters in vCard values
+ */
+const escapeVCardValue = (value: string | undefined): string => {
+  if (!value) return '';
+  return value.toString()
+    .replace(/\\/g, '\\\\')
+    .replace(/,/g, '\\,')
+    .replace(/;/g, '\\;')
+    .replace(/\n/g, '\\n')
+    .replace(/\r/g, '');
+};
+
+/**
  * Generates a vCard (VCF) string from profile data
  * vCard 3.0 format for maximum compatibility
  */
@@ -62,17 +75,17 @@ export const generateVCard = (data: VCardData): string => {
   lines.push('VERSION:3.0');
   
   // Name fields
-  const fullName = `${data.firstName} ${data.lastName}`.trim();
+  const fullName = `${escapeVCardValue(data.firstName)} ${escapeVCardValue(data.lastName)}`.trim();
   lines.push(`FN:${fullName}`);
-  lines.push(`N:${data.lastName};${data.firstName};;;`);
+  lines.push(`N:${escapeVCardValue(data.lastName)};${escapeVCardValue(data.firstName)};;;`);
   
   // Title and organization
   if (data.title) {
-    lines.push(`TITLE:${data.title}`);
+    lines.push(`TITLE:${escapeVCardValue(data.title)}`);
   }
   
   if (data.company) {
-    lines.push(`ORG:${data.company}`);
+    lines.push(`ORG:${escapeVCardValue(data.company)}`);
   }
   
   // Contact information
@@ -84,8 +97,8 @@ export const generateVCard = (data: VCardData): string => {
   }
   
   if (data.email) {
-    lines.push(`EMAIL;TYPE=WORK:${data.email}`);
-    lines.push(`EMAIL;TYPE=INTERNET:${data.email}`);
+    lines.push(`EMAIL;TYPE=WORK:${escapeVCardValue(data.email)}`);
+    lines.push(`EMAIL;TYPE=INTERNET:${escapeVCardValue(data.email)}`);
   }
   
   if (data.website) {
@@ -120,7 +133,7 @@ export const generateVCard = (data: VCardData): string => {
   }
   
   if (noteContent) {
-    lines.push(`NOTE:${noteContent}`);
+    lines.push(`NOTE:${escapeVCardValue(noteContent)}`);
   }
   
   // Photo (if it's a base64 string)
@@ -164,6 +177,16 @@ export const downloadVCard = (data: VCardData): void => {
   setTimeout(() => {
     window.URL.revokeObjectURL(url);
   }, 100);
+};
+
+/**
+ * Creates a data URL for vCard content
+ * Useful for iOS devices where direct download might not work
+ */
+export const createVCardDataUrl = (data: VCardData): string => {
+  const vCardContent = generateVCard(data);
+  const base64 = btoa(unescape(encodeURIComponent(vCardContent)));
+  return `data:text/vcard;base64,${base64}`;
 };
 
 /**

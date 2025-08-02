@@ -278,26 +278,37 @@ router.get('/:profileId/vcard', async (req, res) => {
       console.error('Analytics tracking failed:', analyticsError);
     }
 
+    // Helper function to escape vCard special characters
+    const escapeVCardValue = (value) => {
+      if (!value) return '';
+      return value.toString()
+        .replace(/\\/g, '\\\\')
+        .replace(/,/g, '\\,')
+        .replace(/;/g, '\\;')
+        .replace(/\n/g, '\\n')
+        .replace(/\r/g, '');
+    };
+    
     // Generate vCard content
     const vcardLines = [
       'BEGIN:VCARD',
       'VERSION:3.0',
-      `FN:${profile.personalInfo.firstName} ${profile.personalInfo.lastName}`,
-      `N:${profile.personalInfo.lastName};${profile.personalInfo.firstName};;;`
+      `FN:${escapeVCardValue(profile.personalInfo.firstName)} ${escapeVCardValue(profile.personalInfo.lastName)}`,
+      `N:${escapeVCardValue(profile.personalInfo.lastName)};${escapeVCardValue(profile.personalInfo.firstName)};;;`
     ];
     
     // Add optional fields only if they exist
     if (profile.personalInfo.title) {
-      vcardLines.push(`TITLE:${profile.personalInfo.title}`);
+      vcardLines.push(`TITLE:${escapeVCardValue(profile.personalInfo.title)}`);
     }
     
     if (profile.personalInfo.company) {
-      vcardLines.push(`ORG:${profile.personalInfo.company}`);
+      vcardLines.push(`ORG:${escapeVCardValue(profile.personalInfo.company)}`);
     }
     
     if (profile.contactInfo?.email) {
-      vcardLines.push(`EMAIL;TYPE=WORK:${profile.contactInfo.email}`);
-      vcardLines.push(`EMAIL;TYPE=INTERNET:${profile.contactInfo.email}`);
+      vcardLines.push(`EMAIL;TYPE=WORK:${escapeVCardValue(profile.contactInfo.email)}`);
+      vcardLines.push(`EMAIL;TYPE=INTERNET:${escapeVCardValue(profile.contactInfo.email)}`);
     }
     
     if (profile.contactInfo?.phone) {
@@ -358,7 +369,7 @@ router.get('/:profileId/vcard', async (req, res) => {
     }
     
     if (noteContent) {
-      vcardLines.push(`NOTE:${noteContent}`);
+      vcardLines.push(`NOTE:${escapeVCardValue(noteContent)}`);
     }
     
     // Add photo if available (base64)
@@ -377,8 +388,11 @@ router.get('/:profileId/vcard', async (req, res) => {
     const vcard = vcardLines.join('\r\n');
 
     res.set({
-      'Content-Type': 'text/vcard',
-      'Content-Disposition': `attachment; filename="${profile.personalInfo.firstName}_${profile.personalInfo.lastName}.vcf"`
+      'Content-Type': 'text/vcard;charset=utf-8',
+      'Content-Disposition': `attachment; filename="${profile.personalInfo.firstName}_${profile.personalInfo.lastName}.vcf"`,
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
     });
     
     res.send(vcard);

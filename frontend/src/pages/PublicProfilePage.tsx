@@ -235,16 +235,70 @@ const PublicProfilePage: React.FC = () => {
       // Track download event
       trackDownload('vcard');
       
-      // Download vCard using the API service
-      const blob = await publicAPI.downloadVCard(profileId);
+      // Generate vCard data
+      const { profileToVCard, generateVCard } = await import('../utils/vcard');
+      const vCardData = profileToVCard(profile);
+      const vCardContent = generateVCard(vCardData);
+      const fileName = `${profile.personalInfo.firstName}_${profile.personalInfo.lastName}.vcf`;
+      
+      // Check if Web Share API is available and can share files
+      if (navigator.share && navigator.canShare) {
+        // Create a file object
+        const file = new File([vCardContent], fileName, { type: 'text/vcard' });
+        
+        // Check if the device can share this file
+        if (navigator.canShare({ files: [file] })) {
+          try {
+            await navigator.share({
+              files: [file],
+              title: `${profile.personalInfo.firstName} ${profile.personalInfo.lastName}`,
+              text: 'Contact Card'
+            });
+            
+            // Show success feedback
+            setContactSaved(true);
+            setTimeout(() => setContactSaved(false), 3000);
+            return;
+          } catch (shareError) {
+            // User cancelled or share failed
+            console.log('Share cancelled or failed:', shareError);
+          }
+        }
+      }
+      
+      // Fallback for devices without Web Share API or desktop
+      const blob = new Blob([vCardContent], { type: 'text/vcard;charset=utf-8' });
       const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `${profile.personalInfo.firstName}_${profile.personalInfo.lastName}.vcf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
+      
+      // For iOS devices, try to open directly
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      if (isIOS) {
+        // Create an anchor tag and simulate click
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = fileName;
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        
+        // Clean up
+        setTimeout(() => {
+          document.body.removeChild(link);
+          window.URL.revokeObjectURL(url);
+        }, 100);
+      } else {
+        // Standard download for other devices
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        setTimeout(() => {
+          window.URL.revokeObjectURL(url);
+        }, 100);
+      }
       
       // Show success feedback
       setContactSaved(true);
@@ -252,6 +306,25 @@ const PublicProfilePage: React.FC = () => {
       
     } catch (error) {
       console.error('Failed to save contact:', error);
+      
+      // Final fallback - use API endpoint
+      try {
+        const blob = await publicAPI.downloadVCard(profileId);
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${profile.personalInfo.firstName}_${profile.personalInfo.lastName}.vcf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+        
+        setContactSaved(true);
+        setTimeout(() => setContactSaved(false), 3000);
+      } catch (fallbackError) {
+        console.error('All methods failed:', fallbackError);
+        alert('Unable to save contact. Please try again.');
+      }
     }
   };
 
