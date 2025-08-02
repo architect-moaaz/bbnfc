@@ -236,9 +236,12 @@ const PublicProfilePage: React.FC = () => {
       trackDownload('vcard');
       
       // Generate vCard data
-      const { profileToVCard, generateVCard } = await import('../utils/vcard');
+      const { profileToVCard, generateVCard, generateSimpleVCard } = await import('../utils/vcard');
       const vCardData = profileToVCard(profile);
-      const vCardContent = generateVCard(vCardData);
+      
+      // Use simplified vCard for mobile devices for better compatibility
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      const vCardContent = isMobile ? generateSimpleVCard(vCardData) : generateVCard(vCardData);
       const fileName = `${profile.personalInfo.firstName}_${profile.personalInfo.lastName}.vcf`;
       
       // Check if Web Share API is available and can share files

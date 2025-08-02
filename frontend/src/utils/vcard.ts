@@ -74,10 +74,15 @@ export const generateVCard = (data: VCardData): string => {
   lines.push('BEGIN:VCARD');
   lines.push('VERSION:3.0');
   
-  // Name fields
-  const fullName = `${escapeVCardValue(data.firstName)} ${escapeVCardValue(data.lastName)}`.trim();
+  // Add PRODID for better compatibility
+  lines.push('PRODID:-//NFC Business Card//EN');
+  
+  // Name fields - ensure they're not empty
+  const firstName = data.firstName || 'Contact';
+  const lastName = data.lastName || '';
+  const fullName = `${escapeVCardValue(firstName)} ${escapeVCardValue(lastName)}`.trim();
   lines.push(`FN:${fullName}`);
-  lines.push(`N:${escapeVCardValue(data.lastName)};${escapeVCardValue(data.firstName)};;;`);
+  lines.push(`N:${escapeVCardValue(lastName)};${escapeVCardValue(firstName)};;;`);
   
   // Title and organization
   if (data.title) {
@@ -136,11 +141,15 @@ export const generateVCard = (data: VCardData): string => {
     lines.push(`NOTE:${escapeVCardValue(noteContent)}`);
   }
   
-  // Photo (if it's a base64 string)
+  // Photo (if it's a base64 string and not too large)
   if (data.profilePhoto && data.profilePhoto.startsWith('data:image')) {
     const photoData = data.profilePhoto.split(',')[1]; // Remove data:image/jpeg;base64, prefix
     const mimeType = data.profilePhoto.split(';')[0].split(':')[1]; // Extract mime type
-    lines.push(`PHOTO;ENCODING=BASE64;TYPE=${mimeType}:${photoData}`);
+    
+    // Skip photo if it's too large (many mobile devices can't handle large photos in vCards)
+    if (photoData && photoData.length < 50000) { // ~37KB max
+      lines.push(`PHOTO;ENCODING=BASE64;TYPE=${mimeType}:${photoData}`);
+    }
   }
   
   // Timestamp
@@ -177,6 +186,78 @@ export const downloadVCard = (data: VCardData): void => {
   setTimeout(() => {
     window.URL.revokeObjectURL(url);
   }, 100);
+};
+
+/**
+ * Generates a simplified vCard for better mobile compatibility
+ * Excludes complex fields that might cause import issues
+ */
+export const generateSimpleVCard = (data: VCardData): string => {
+  const lines: string[] = [];
+  
+  // vCard header
+  lines.push('BEGIN:VCARD');
+  lines.push('VERSION:3.0');
+  lines.push('PRODID:-//NFC Business Card//EN');
+  
+  // Essential name fields only
+  const firstName = data.firstName || 'Contact';
+  const lastName = data.lastName || '';
+  const fullName = `${escapeVCardValue(firstName)} ${escapeVCardValue(lastName)}`.trim();
+  lines.push(`FN:${fullName}`);
+  lines.push(`N:${escapeVCardValue(lastName)};${escapeVCardValue(firstName)};;;`);
+  
+  // Essential contact info only
+  if (data.phone) {
+    const cleanPhone = data.phone.replace(/[^\d+()-\s]/g, '');
+    lines.push(`TEL:${cleanPhone}`);
+  }
+  
+  if (data.email) {
+    lines.push(`EMAIL:${escapeVCardValue(data.email)}`);
+  }
+  
+  // Title and organization (simplified)
+  if (data.title) {
+    lines.push(`TITLE:${escapeVCardValue(data.title)}`);
+  }
+  
+  if (data.company) {
+    lines.push(`ORG:${escapeVCardValue(data.company)}`);
+  }
+  
+  // Website
+  if (data.website) {
+    const website = data.website.startsWith('http') ? data.website : `https://${data.website}`;
+    lines.push(`URL:${website}`);
+  }
+  
+  // Simple address (no complex formatting)
+  if (data.address && (data.address.street || data.address.city)) {
+    const addressParts = [
+      data.address.street || '',
+      data.address.city || '',
+      data.address.state || '',
+      data.address.postalCode || '',
+      data.address.country || ''
+    ].filter(part => part.trim()).join(', ');
+    
+    if (addressParts) {
+      lines.push(`ADR:;;${escapeVCardValue(addressParts)};;;;`);
+    }
+  }
+  
+  // Simple note (bio only, no business hours)
+  if (data.bio && data.bio.length < 500) { // Keep notes short
+    lines.push(`NOTE:${escapeVCardValue(data.bio)}`);
+  }
+  
+  // Skip photos entirely for better compatibility
+  
+  // vCard footer
+  lines.push('END:VCARD');
+  
+  return lines.join('\r\n');
 };
 
 /**

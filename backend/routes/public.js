@@ -290,11 +290,15 @@ router.get('/:profileId/vcard', async (req, res) => {
     };
     
     // Generate vCard content
+    const firstName = profile.personalInfo.firstName || 'Contact';
+    const lastName = profile.personalInfo.lastName || '';
+    
     const vcardLines = [
       'BEGIN:VCARD',
       'VERSION:3.0',
-      `FN:${escapeVCardValue(profile.personalInfo.firstName)} ${escapeVCardValue(profile.personalInfo.lastName)}`,
-      `N:${escapeVCardValue(profile.personalInfo.lastName)};${escapeVCardValue(profile.personalInfo.firstName)};;;`
+      'PRODID:-//NFC Business Card//EN',
+      `FN:${escapeVCardValue(firstName)} ${escapeVCardValue(lastName)}`.trim(),
+      `N:${escapeVCardValue(lastName)};${escapeVCardValue(firstName)};;;`
     ];
     
     // Add optional fields only if they exist
@@ -372,11 +376,15 @@ router.get('/:profileId/vcard', async (req, res) => {
       vcardLines.push(`NOTE:${escapeVCardValue(noteContent)}`);
     }
     
-    // Add photo if available (base64)
+    // Add photo if available (base64) and not too large
     if (profile.personalInfo.profilePhoto && profile.personalInfo.profilePhoto.startsWith('data:image')) {
       const photoData = profile.personalInfo.profilePhoto.split(',')[1];
       const mimeType = profile.personalInfo.profilePhoto.split(';')[0].split(':')[1];
-      vcardLines.push(`PHOTO;ENCODING=BASE64;TYPE=${mimeType}:${photoData}`);
+      
+      // Skip photo if it's too large (many mobile devices can't handle large photos in vCards)
+      if (photoData && photoData.length < 50000) { // ~37KB max
+        vcardLines.push(`PHOTO;ENCODING=BASE64;TYPE=${mimeType}:${photoData}`);
+      }
     }
     
     // Add revision timestamp
