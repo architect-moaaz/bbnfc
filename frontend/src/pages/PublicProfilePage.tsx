@@ -110,25 +110,15 @@ const PublicProfilePage: React.FC = () => {
     if (!profile || !profileId) return;
     
     try {
-      const response = await fetch(`http://localhost:5000/p/${profileId}/analytics`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          eventType,
-          eventData,
-          visitor: {
-            sessionId: sessionStorage.getItem('sessionId') || 'anonymous',
-            userAgent: navigator.userAgent,
-            language: navigator.language,
-          }
-        }),
+      await publicAPI.recordAnalytics(profileId, {
+        eventType,
+        eventData,
+        visitor: {
+          sessionId: sessionStorage.getItem('sessionId') || 'anonymous',
+          userAgent: navigator.userAgent,
+          language: navigator.language,
+        }
       });
-      
-      if (!response.ok) {
-        console.warn('Analytics tracking failed:', response.statusText);
-      }
     } catch (error) {
       console.warn('Analytics tracking failed:', error);
     }
@@ -239,18 +229,22 @@ const PublicProfilePage: React.FC = () => {
   };
 
   const handleSaveContact = async () => {
-    if (!profile) return;
+    if (!profile || !profileId) return;
     
     try {
       // Track download event
       trackDownload('vcard');
       
-      // Use backend vCard endpoint for proper tracking
-      const vCardUrl = `http://localhost:5000/p/${profileId}/vcard`;
+      // Download vCard using the API service
+      const blob = await publicAPI.downloadVCard(profileId);
+      const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
-      link.href = vCardUrl;
+      link.href = url;
       link.download = `${profile.personalInfo.firstName}_${profile.personalInfo.lastName}.vcf`;
+      document.body.appendChild(link);
       link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
       
       // Show success feedback
       setContactSaved(true);
