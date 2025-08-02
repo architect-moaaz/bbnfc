@@ -80,8 +80,10 @@ app.use('/api/subscriptions', require('../backend/routes/subscriptions')); // �
 app.use('/api/admin', require('../backend/routes/admin')); // ✅ Updated to native driver
 app.use('/api/upload', require('../backend/routes/upload')); // ✅ Compatible with native driver
 
-// Public profile access routes
-app.use('/p', require('../backend/routes/public')); // ✅ Updated to native driver
+// Public profile access routes - Moved to API endpoints
+// The /p/* routes are now handled by the frontend React app
+// API endpoints for public profile data:
+app.use('/api/public', require('../backend/routes/public')); // ✅ Updated to native driver
 
 
 // Error handling middleware

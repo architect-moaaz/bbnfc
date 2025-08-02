@@ -318,12 +318,8 @@ export const adminAPI = {
 };
 
 // Create a separate axios instance for public API (no auth required)
-const PUBLIC_BASE_URL = process.env.REACT_APP_API_URL 
-  ? process.env.REACT_APP_API_URL.replace('/api', '') 
-  : 'http://localhost:5000';
-
 const publicAxios = axios.create({
-  baseURL: PUBLIC_BASE_URL, // Direct to server root for public routes
+  baseURL: API_BASE_URL, // Use the same API base URL
   headers: {
     'Content-Type': 'application/json',
   },
@@ -332,23 +328,21 @@ const publicAxios = axios.create({
 // Public API (no authentication required)
 export const publicAPI = {
   getPublicProfile: async (profileId: string): Promise<ApiResponse<Profile>> => {
-    const response = await publicAxios.get(`/p/${profileId}`);
+    const response = await publicAxios.get(`/public/${profileId}`);
     return response.data;
   },
 
-  recordAnalytics: async (analyticsData: {
-    type: string;
-    profileId: string;
-    timestamp: string;
-    userAgent: string;
-    referrer: string;
-  }): Promise<ApiResponse<string>> => {
-    const response = await publicAxios.post('/analytics', analyticsData);
+  recordAnalytics: async (profileId: string, analyticsData: {
+    eventType: string;
+    eventData?: any;
+    visitor?: any;
+  }): Promise<ApiResponse<any>> => {
+    const response = await publicAxios.post(`/public/${profileId}/analytics`, analyticsData);
     return response.data;
   },
 
   downloadVCard: async (profileId: string): Promise<Blob> => {
-    const response = await publicAxios.get(`/p/${profileId}/vcard`, {
+    const response = await publicAxios.get(`/public/${profileId}/vcard`, {
       responseType: 'blob'
     });
     return response.data;
