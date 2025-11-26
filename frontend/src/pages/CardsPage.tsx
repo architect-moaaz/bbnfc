@@ -438,14 +438,15 @@ const CardsPage: React.FC = () => {
               onChange={(e) => setFormData({ ...formData, profileId: e.target.value })}
               fullWidth
               required
+              helperText={profiles.length === 0 ? 'No profiles available. Create a profile first.' : 'Select the profile to link with this card'}
             >
               <MenuItem value="">
                 <em>Select a profile</em>
               </MenuItem>
               {profiles.map((profile) => (
                 <MenuItem key={profile.id} value={profile.id}>
-                  {profile.personalInfo.firstName} {profile.personalInfo.lastName}
-                  {profile.personalInfo.title && ` - ${profile.personalInfo.title}`}
+                  {profile.personalInfo?.firstName || ''} {profile.personalInfo?.lastName || ''}
+                  {profile.personalInfo?.title && ` - ${profile.personalInfo.title}`}
                 </MenuItem>
               ))}
             </TextField>

@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { ApiResponse, User, Profile, Card, Template, Analytics, Subscription } from '../types';
+import { ApiResponse, User, Profile, Card, Template, Analytics, Subscription, Organization } from '../types';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
@@ -317,6 +317,95 @@ export const adminAPI = {
   },
 };
 
+// Organizations API
+export const organizationsAPI = {
+  // Get current user's organization
+  getCurrentOrganization: async (): Promise<ApiResponse<Organization>> => {
+    const response = await api.get('/organizations/current');
+    return response.data;
+  },
+
+  // Get organization by ID
+  getOrganization: async (orgId: string): Promise<ApiResponse<Organization>> => {
+    const response = await api.get(`/organizations/${orgId}`);
+    return response.data;
+  },
+
+  // Create new organization
+  createOrganization: async (data: Partial<Organization>): Promise<ApiResponse<Organization>> => {
+    const response = await api.post('/organizations', data);
+    return response.data;
+  },
+
+  // Update organization settings
+  updateOrganization: async (orgId: string, data: Partial<Organization>): Promise<ApiResponse<Organization>> => {
+    const response = await api.put(`/organizations/${orgId}`, data);
+    return response.data;
+  },
+
+  // Delete organization
+  deleteOrganization: async (orgId: string): Promise<ApiResponse<string>> => {
+    const response = await api.delete(`/organizations/${orgId}`);
+    return response.data;
+  },
+
+  // Get organization members
+  getMembers: async (orgId: string): Promise<ApiResponse<User[]>> => {
+    const response = await api.get(`/organizations/${orgId}/members`);
+    return response.data;
+  },
+
+  // Invite user to organization
+  inviteMember: async (orgId: string, email: string, role: string): Promise<ApiResponse<any>> => {
+    const response = await api.post(`/organizations/${orgId}/invite`, { email, role });
+    return response.data;
+  },
+
+  // Update member role
+  updateMemberRole: async (orgId: string, userId: string, role: string): Promise<ApiResponse<User>> => {
+    const response = await api.put(`/organizations/${orgId}/members/${userId}`, { role });
+    return response.data;
+  },
+
+  // Remove member from organization
+  removeMember: async (orgId: string, userId: string): Promise<ApiResponse<string>> => {
+    const response = await api.delete(`/organizations/${orgId}/members/${userId}`);
+    return response.data;
+  },
+
+  // Get organization usage stats
+  getUsageStats: async (orgId: string): Promise<ApiResponse<any>> => {
+    const response = await api.get(`/organizations/${orgId}/usage`);
+    return response.data;
+  },
+
+  // Get organization analytics
+  getAnalytics: async (orgId: string, timeRange?: string): Promise<ApiResponse<Analytics>> => {
+    const response = await api.get(`/organizations/${orgId}/analytics`, {
+      params: { timeRange }
+    });
+    return response.data;
+  },
+
+  // Update organization branding
+  updateBranding: async (orgId: string, branding: any): Promise<ApiResponse<Organization>> => {
+    const response = await api.put(`/organizations/${orgId}/branding`, branding);
+    return response.data;
+  },
+
+  // Get organization profiles
+  getProfiles: async (orgId: string): Promise<ApiResponse<Profile[]>> => {
+    const response = await api.get(`/organizations/${orgId}/profiles`);
+    return response.data;
+  },
+
+  // Get organization cards
+  getCards: async (orgId: string): Promise<ApiResponse<Card[]>> => {
+    const response = await api.get(`/organizations/${orgId}/cards`);
+    return response.data;
+  },
+};
+
 // Create a separate axios instance for public API (no auth required)
 const publicAxios = axios.create({
   baseURL: API_BASE_URL, // Use the same API base URL
@@ -354,7 +443,7 @@ export const uploadAPI = {
   uploadProfilePhoto: async (file: File): Promise<ApiResponse<{ imageUrl: string }>> => {
     const formData = new FormData();
     formData.append('photo', file);
-    
+
     // Don't set Content-Type header - let axios set it with boundary
     const response = await api.post('/upload/profile-photo', formData);
     return response.data;
@@ -363,9 +452,18 @@ export const uploadAPI = {
   uploadCompanyLogo: async (file: File): Promise<ApiResponse<{ imageUrl: string }>> => {
     const formData = new FormData();
     formData.append('logo', file);
-    
+
     // Don't set Content-Type header - let axios set it with boundary
     const response = await api.post('/upload/company-logo', formData);
+    return response.data;
+  },
+
+  uploadFile: async (file: File): Promise<ApiResponse<{ fileUrl: string; fileName: string; fileType: string; fileSize: number }>> => {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    // Don't set Content-Type header - let axios set it with boundary
+    const response = await api.post('/upload/file', formData);
     return response.data;
   },
 };
