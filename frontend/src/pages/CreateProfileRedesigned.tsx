@@ -355,6 +355,27 @@ const CreateProfileRedesigned: React.FC = () => {
 
   const [customLinks, setCustomLinks] = useState<any[]>([]);
 
+  const [socialLinks, setSocialLinks] = useState({
+    linkedin: '',
+    twitter: '',
+    instagram: '',
+    facebook: '',
+    github: '',
+    youtube: '',
+    tiktok: '',
+    pinterest: '',
+  });
+
+  const [businessHours, setBusinessHours] = useState([
+    { day: 'Monday', isOpen: true, openTime: '09:00', closeTime: '17:00' },
+    { day: 'Tuesday', isOpen: true, openTime: '09:00', closeTime: '17:00' },
+    { day: 'Wednesday', isOpen: true, openTime: '09:00', closeTime: '17:00' },
+    { day: 'Thursday', isOpen: true, openTime: '09:00', closeTime: '17:00' },
+    { day: 'Friday', isOpen: true, openTime: '09:00', closeTime: '17:00' },
+    { day: 'Saturday', isOpen: false, openTime: '09:00', closeTime: '17:00' },
+    { day: 'Sunday', isOpen: false, openTime: '09:00', closeTime: '17:00' },
+  ]);
+
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, {
@@ -398,8 +419,10 @@ const CreateProfileRedesigned: React.FC = () => {
           whatsapp: whatsappAction?.label || '',
         },
         socialLinks: {
+          ...socialLinks,
           custom: customLinks,
         },
+        businessHours: businessHours,
         isActive: true,
       };
 
@@ -619,6 +642,190 @@ const CreateProfileRedesigned: React.FC = () => {
                   ))}
                 </SortableContext>
               </DndContext>
+            </Paper>
+
+            {/* Social Media Links Section */}
+            <Paper elevation={0} sx={{ p: 3, mb: 3, borderRadius: '16px' }}>
+              <Box sx={{ mb: 2 }}>
+                <Typography variant="h6" sx={{ fontWeight: 600, mb: 0.5 }}>
+                  Social Media Links
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Connect your social media profiles
+                </Typography>
+              </Box>
+
+              <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
+                <TextField
+                  fullWidth
+                  label="LinkedIn"
+                  placeholder="https://linkedin.com/in/username"
+                  value={socialLinks.linkedin}
+                  onChange={(e) => setSocialLinks({ ...socialLinks, linkedin: e.target.value })}
+                  size="small"
+                  InputProps={{
+                    startAdornment: <LinkedIn sx={{ mr: 1, color: '#0077B5' }} />,
+                  }}
+                />
+                <TextField
+                  fullWidth
+                  label="Twitter/X"
+                  placeholder="https://twitter.com/username"
+                  value={socialLinks.twitter}
+                  onChange={(e) => setSocialLinks({ ...socialLinks, twitter: e.target.value })}
+                  size="small"
+                  InputProps={{
+                    startAdornment: <Twitter sx={{ mr: 1, color: '#1DA1F2' }} />,
+                  }}
+                />
+                <TextField
+                  fullWidth
+                  label="Instagram"
+                  placeholder="https://instagram.com/username"
+                  value={socialLinks.instagram}
+                  onChange={(e) => setSocialLinks({ ...socialLinks, instagram: e.target.value })}
+                  size="small"
+                  InputProps={{
+                    startAdornment: <Instagram sx={{ mr: 1, color: '#E4405F' }} />,
+                  }}
+                />
+                <TextField
+                  fullWidth
+                  label="Facebook"
+                  placeholder="https://facebook.com/username"
+                  value={socialLinks.facebook}
+                  onChange={(e) => setSocialLinks({ ...socialLinks, facebook: e.target.value })}
+                  size="small"
+                  InputProps={{
+                    startAdornment: <WebsiteIcon sx={{ mr: 1, color: '#1877F2' }} />,
+                  }}
+                />
+                <TextField
+                  fullWidth
+                  label="GitHub"
+                  placeholder="https://github.com/username"
+                  value={socialLinks.github}
+                  onChange={(e) => setSocialLinks({ ...socialLinks, github: e.target.value })}
+                  size="small"
+                  InputProps={{
+                    startAdornment: <GitHub sx={{ mr: 1, color: '#181717' }} />,
+                  }}
+                />
+                <TextField
+                  fullWidth
+                  label="YouTube"
+                  placeholder="https://youtube.com/@username"
+                  value={socialLinks.youtube}
+                  onChange={(e) => setSocialLinks({ ...socialLinks, youtube: e.target.value })}
+                  size="small"
+                  InputProps={{
+                    startAdornment: <WebsiteIcon sx={{ mr: 1, color: '#FF0000' }} />,
+                  }}
+                />
+                <TextField
+                  fullWidth
+                  label="TikTok"
+                  placeholder="https://tiktok.com/@username"
+                  value={socialLinks.tiktok}
+                  onChange={(e) => setSocialLinks({ ...socialLinks, tiktok: e.target.value })}
+                  size="small"
+                  InputProps={{
+                    startAdornment: <WebsiteIcon sx={{ mr: 1, color: '#000000' }} />,
+                  }}
+                />
+                <TextField
+                  fullWidth
+                  label="Pinterest"
+                  placeholder="https://pinterest.com/username"
+                  value={socialLinks.pinterest}
+                  onChange={(e) => setSocialLinks({ ...socialLinks, pinterest: e.target.value })}
+                  size="small"
+                  InputProps={{
+                    startAdornment: <WebsiteIcon sx={{ mr: 1, color: '#E60023' }} />,
+                  }}
+                />
+              </Box>
+            </Paper>
+
+            {/* Business Hours Section */}
+            <Paper elevation={0} sx={{ p: 3, mb: 3, borderRadius: '16px' }}>
+              <Box sx={{ mb: 2 }}>
+                <Typography variant="h6" sx={{ fontWeight: 600, mb: 0.5 }}>
+                  Business Hours
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Set your availability throughout the week
+                </Typography>
+              </Box>
+
+              {businessHours.map((schedule, index) => (
+                <Box
+                  key={schedule.day}
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 2,
+                    mb: 2,
+                    p: 2,
+                    backgroundColor: schedule.isOpen ? '#F8FAFC' : '#FEF2F2',
+                    borderRadius: '12px',
+                    border: '1px solid',
+                    borderColor: schedule.isOpen ? '#E5E7EB' : '#FEE2E2',
+                  }}
+                >
+                  <Box sx={{ width: 120 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                      {schedule.day}
+                    </Typography>
+                  </Box>
+
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1 }}>
+                    <input
+                      type="checkbox"
+                      checked={schedule.isOpen}
+                      onChange={(e) => {
+                        const updated = [...businessHours];
+                        updated[index].isOpen = e.target.checked;
+                        setBusinessHours(updated);
+                      }}
+                      style={{ width: 20, height: 20, cursor: 'pointer' }}
+                    />
+                    <Typography variant="body2" sx={{ minWidth: 60 }}>
+                      {schedule.isOpen ? 'Open' : 'Closed'}
+                    </Typography>
+                  </Box>
+
+                  {schedule.isOpen && (
+                    <>
+                      <TextField
+                        type="time"
+                        size="small"
+                        value={schedule.openTime}
+                        onChange={(e) => {
+                          const updated = [...businessHours];
+                          updated[index].openTime = e.target.value;
+                          setBusinessHours(updated);
+                        }}
+                        sx={{ width: 130 }}
+                      />
+                      <Typography variant="body2" sx={{ color: '#64748B' }}>
+                        to
+                      </Typography>
+                      <TextField
+                        type="time"
+                        size="small"
+                        value={schedule.closeTime}
+                        onChange={(e) => {
+                          const updated = [...businessHours];
+                          updated[index].closeTime = e.target.value;
+                          setBusinessHours(updated);
+                        }}
+                        sx={{ width: 130 }}
+                      />
+                    </>
+                  )}
+                </Box>
+              ))}
             </Paper>
 
             {/* Custom Links & Files Section */}
