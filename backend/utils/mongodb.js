@@ -3,7 +3,7 @@ const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 let client = null;
 let db = null;
 
-const uri = process.env.MONGODB_URI || "mongodb+srv://m:to7kXzNixG4y78CB@cluster0.dbmqmws.mongodb.net/?retryWrites=true&w=majority&appName=cluster0";
+const uri = process.env.MONGODB_URI || "mongodb+srv://m:Qaz%233wsx@cluster0.dbmqmws.mongodb.net/?retryWrites=true&w=majority&appName=cluster0";
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
 async function connectToDatabase() {
