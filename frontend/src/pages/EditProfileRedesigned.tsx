@@ -599,9 +599,9 @@ const EditProfileRedesigned: React.FC = () => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    // Validate file size (10MB max)
-    if (file.size > 10 * 1024 * 1024) {
-      alert('File size must be less than 10MB');
+    // Validate file size (2MB max for MongoDB storage)
+    if (file.size > 2 * 1024 * 1024) {
+      alert('File size must be less than 2MB');
       return;
     }
 
@@ -655,9 +655,9 @@ const EditProfileRedesigned: React.FC = () => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    // Validate file size (5MB max)
-    if (file.size > 5 * 1024 * 1024) {
-      alert('File size must be less than 5MB');
+    // Validate file size (2MB max for MongoDB storage)
+    if (file.size > 2 * 1024 * 1024) {
+      alert('File size must be less than 2MB');
       return;
     }
 
@@ -712,9 +712,9 @@ const EditProfileRedesigned: React.FC = () => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    // Validate file size (5MB max)
-    if (file.size > 5 * 1024 * 1024) {
-      alert('File size must be less than 5MB');
+    // Validate file size (2MB max for MongoDB storage)
+    if (file.size > 2 * 1024 * 1024) {
+      alert('File size must be less than 2MB');
       return;
     }
 
