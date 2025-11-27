@@ -6,6 +6,11 @@ const profileSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
+  organization: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Organization',
+    default: null
+  },
   slug: {
     type: String,
     unique: true,
@@ -88,7 +93,8 @@ const profileSchema = new mongoose.Schema({
   template: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Template',
-    required: true
+    required: false,
+    default: null
   },
   customization: {
     primaryColor: {

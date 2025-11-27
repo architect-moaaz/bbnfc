@@ -150,10 +150,14 @@ const MobilePreview: React.FC<MobilePreviewProps> = ({ profile, orientation = 'p
       >
         {/* Profile Content */}
         <Box sx={{ height: '100%', overflowY: 'auto' }}>
-          {/* Header with gradient */}
+          {/* Header with gradient or cover image */}
           <Box
             sx={{
-              background: 'linear-gradient(135deg, #2D6EF5 0%, #4A8DF8 100%)',
+              background: profile.customization?.backgroundImage
+                ? `url(${profile.customization.backgroundImage})`
+                : 'linear-gradient(135deg, #2D6EF5 0%, #4A8DF8 100%)',
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
               height: 120,
               position: 'relative',
             }}
@@ -388,8 +392,10 @@ const EditProfileRedesigned: React.FC = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [previewOrientation, setPreviewOrientation] = useState<'portrait' | 'landscape'>('portrait');
   const coverImageInputRef = React.useRef<HTMLInputElement>(null);
+  const profilePhotoInputRef = React.useRef<HTMLInputElement>(null);
   const [profile, setProfile] = useState<Partial<Profile>>({
     personalInfo: {
       firstName: '',
@@ -702,6 +708,53 @@ const EditProfileRedesigned: React.FC = () => {
     });
   };
 
+  const handleProfilePhotoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file size (5MB max)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('File size must be less than 5MB');
+      return;
+    }
+
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      alert('Only JPEG, PNG, GIF, and WebP images are allowed');
+      return;
+    }
+
+    setUploadingPhoto(true);
+
+    try {
+      const response = await uploadAPI.uploadProfilePhoto(file);
+
+      if (response.success && response.data) {
+        const imageUrl = response.data.imageUrl;
+        setProfile({
+          ...profile,
+          personalInfo: {
+            ...profile.personalInfo,
+            profilePhoto: imageUrl,
+          },
+        });
+        alert('Profile photo uploaded successfully!');
+      } else {
+        alert('Failed to upload profile photo');
+      }
+    } catch (err) {
+      console.error('Upload error:', err);
+      alert('Failed to upload profile photo. Please try again.');
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
+  const handleProfilePhotoClick = () => {
+    profilePhotoInputRef.current?.click();
+  };
+
   return (
     <Box sx={{ backgroundColor: '#F8FAFC', minHeight: '100vh', p: 4 }}>
       <Container maxWidth="xl">
@@ -767,12 +820,59 @@ const EditProfileRedesigned: React.FC = () => {
               </Typography>
 
               <Box sx={{ display: 'flex', gap: 3, mb: 3 }}>
-                <Avatar
-                  src={profile.personalInfo?.profilePhoto}
-                  sx={{ width: 80, height: 80 }}
-                >
-                  {profile.personalInfo?.firstName?.charAt(0) || 'U'}
-                </Avatar>
+                <Box>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
+                    Profile Photo
+                  </Typography>
+                  <Box
+                    onClick={handleProfilePhotoClick}
+                    sx={{
+                      position: 'relative',
+                      cursor: 'pointer',
+                      '&:hover': {
+                        opacity: 0.8,
+                      },
+                    }}
+                  >
+                    <Avatar
+                      src={profile.personalInfo?.profilePhoto}
+                      sx={{
+                        width: 80,
+                        height: 80,
+                        border: uploadingPhoto ? '2px solid #2D6EF5' : 'none',
+                      }}
+                    >
+                      {uploadingPhoto ? '...' : (profile.personalInfo?.firstName?.charAt(0) || 'U')}
+                    </Avatar>
+                    {!uploadingPhoto && (
+                      <Box
+                        sx={{
+                          position: 'absolute',
+                          bottom: 0,
+                          right: 0,
+                          width: 24,
+                          height: 24,
+                          borderRadius: '50%',
+                          backgroundColor: '#2D6EF5',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          border: '2px solid white',
+                        }}
+                      >
+                        <UploadIcon sx={{ fontSize: 14, color: 'white' }} />
+                      </Box>
+                    )}
+                  </Box>
+                  <input
+                    ref={profilePhotoInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleProfilePhotoUpload}
+                    style={{ display: 'none' }}
+                    disabled={uploadingPhoto}
+                  />
+                </Box>
                 <Box sx={{ flex: 1 }}>
                   <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
                     Cover Image
