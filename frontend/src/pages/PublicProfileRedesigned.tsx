@@ -19,11 +19,20 @@ import {
   Description as FileIcon,
   Share as ShareIcon,
   PersonAdd as SaveContactIcon,
+  PersonAdd as PersonAddIcon,
   CalendarMonth as CalendarIcon,
   LinkedIn,
   Instagram,
   Twitter,
   GitHub,
+  Business as BusinessIcon,
+  Download as DownloadIcon,
+  Event as EventIcon,
+  ChevronRight as ChevronRightIcon,
+  Public as PublicIcon,
+  Chat as ChatIcon,
+  YouTube,
+  Facebook,
 } from '@mui/icons-material';
 import { useParams } from 'react-router-dom';
 import { publicAPI } from '../services/api';
@@ -211,76 +220,58 @@ const PublicProfileRedesigned: React.FC = () => {
     <Box
       sx={{
         minHeight: '100vh',
-        background: '#F0F4F8',
-        py: { xs: 3, md: 5 },
-        px: { xs: 2, sm: 3 },
+        background: '#F9FAFB',
+        py: { xs: 2, md: 4 },
+        px: { xs: 0, sm: 2 },
       }}
     >
-      <Container maxWidth="lg">
-        <Box sx={{ display: 'flex', gap: 4, maxWidth: 1100, mx: 'auto' }}>
-          {/* Left Column - QR Code (Desktop only) */}
+      <Container maxWidth="sm" sx={{ px: { xs: 0, sm: 2 } }}>
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
           <Box
             sx={{
-              display: { xs: 'none', lg: 'flex' },
-              flexDirection: 'column',
-              width: 240,
-              position: 'sticky',
-              top: 80,
-              height: 'fit-content',
+              backgroundColor: '#F9FAFB',
+              borderRadius: { xs: 0, sm: '20px' },
+              overflow: 'hidden',
+              boxShadow: { xs: 'none', sm: '0px 4px 20px rgba(0, 0, 0, 0.08)' },
+              maxWidth: 480,
+              mx: 'auto',
             }}
           >
-            <motion.div
-              initial={{ opacity: 0, x: -30 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.3 }}
+            {/* Header with gradient or image background */}
+            <Box
+              sx={{
+                background: profile.customization?.backgroundImage
+                  ? `url(${profile.customization.backgroundImage})`
+                  : 'linear-gradient(135deg, #667EEA 0%, #764BA2 100%)',
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+                height: 180,
+                position: 'relative',
+              }}
             >
-              <QRCodeCard url={profileUrl} size={180} />
-            </motion.div>
-          </Box>
-
-          {/* Main Profile Card */}
-          <Box sx={{ flex: 1, maxWidth: 480 }}>
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-            >
-              <Box
+              <IconButton
+                onClick={handleShare}
                 sx={{
-                  backgroundColor: '#FFFFFF',
-                  borderRadius: '20px',
-                  overflow: 'hidden',
-                  boxShadow: '0px 4px 20px rgba(0, 0, 0, 0.08)',
+                  position: 'absolute',
+                  top: 16,
+                  right: 16,
+                  backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                  width: 40,
+                  height: 40,
+                  color: '#1A1A1A',
+                  '&:hover': {
+                    backgroundColor: '#FFFFFF',
+                  },
                 }}
+                size="small"
               >
-                {/* Header with gradient or image background */}
-                <Box
-                  sx={{
-                    background: profile.customization?.backgroundImage
-                      ? `url(${profile.customization.backgroundImage})`
-                      : 'linear-gradient(135deg, #2D6EF5 0%, #4A8DF8 100%)',
-                    backgroundSize: 'cover',
-                    backgroundPosition: 'center',
-                    height: 140,
-                    position: 'relative',
-                  }}
-                >
-                  <IconButton
-                    onClick={handleShare}
-                    sx={{
-                      position: 'absolute',
-                      top: 16,
-                      right: 16,
-                      backgroundColor: 'rgba(255, 255, 255, 0.25)',
-                      color: '#FFFFFF',
-                      '&:hover': {
-                        backgroundColor: 'rgba(255, 255, 255, 0.35)',
-                      },
-                    }}
-                  >
-                    <ShareIcon />
-                  </IconButton>
-                </Box>
+                <ShareIcon sx={{ fontSize: 20 }} />
+              </IconButton>
+            </Box>
 
                 {/* Profile Content */}
                 <Box sx={{ px: 3, pb: 4 }}>
@@ -322,11 +313,12 @@ const PublicProfileRedesigned: React.FC = () => {
                   {/* Name and Title */}
                   <Box sx={{ textAlign: 'center', mb: 3 }}>
                     <Typography
-                      variant="h5"
+                      variant="h4"
                       sx={{
                         fontWeight: 700,
                         color: '#1A1A1A',
-                        mb: 0.5,
+                        mb: 0.75,
+                        fontSize: '1.75rem',
                       }}
                     >
                       {fullName}
@@ -336,14 +328,15 @@ const PublicProfileRedesigned: React.FC = () => {
                       sx={{
                         color: '#2D6EF5',
                         fontWeight: 600,
-                        fontSize: '0.9375rem',
-                        mb: 0.5,
+                        fontSize: '1.125rem',
+                        mb: 1,
                       }}
                     >
                       {profile.personalInfo.title}
                     </Typography>
                     {profile.personalInfo.company && (
-                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.75 }}>
+                        <BusinessIcon sx={{ fontSize: 18, color: '#9CA3AF' }} />
                         <Typography
                           variant="body2"
                           sx={{
@@ -373,358 +366,563 @@ const PublicProfileRedesigned: React.FC = () => {
                     </Typography>
                   )}
 
-                  {/* Quick Contact Actions */}
+                  {/* Quick Contact Actions - 4 Button Grid */}
                   <Box
                     sx={{
-                      display: 'flex',
-                      justifyContent: 'center',
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(4, 1fr)',
                       gap: 2,
                       mb: 3,
-                      px: 2,
+                      px: 1,
                     }}
                   >
+                    {/* Call */}
                     {profile.contactInfo.phone && (
-                      <ContactActionIcon
-                        icon={<PhoneIcon sx={{ fontSize: 24, color: '#2D6EF5' }} />}
-                        label="Call"
-                        onClick={() => handleContact('phone', profile.contactInfo.phone!)}
-                        backgroundColor="#EBF3FF"
-                      />
+                      <Box sx={{ textAlign: 'center' }}>
+                        <Box
+                          onClick={() => handleContact('phone', profile.contactInfo.phone!)}
+                          sx={{
+                            width: '100%',
+                            aspectRatio: '1',
+                            maxWidth: 64,
+                            mx: 'auto',
+                            borderRadius: '16px',
+                            backgroundColor: '#EBF3FF',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s',
+                            '&:hover': {
+                              backgroundColor: '#2D6EF5',
+                              transform: 'translateY(-2px)',
+                              boxShadow: '0 4px 12px rgba(45, 110, 245, 0.3)',
+                              '& .MuiSvgIcon-root': { color: '#FFFFFF' },
+                            },
+                          }}
+                        >
+                          <PhoneIcon sx={{ fontSize: 28, color: '#2D6EF5', transition: 'color 0.2s' }} />
+                        </Box>
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            fontSize: '0.75rem',
+                            color: '#6B7280',
+                            mt: 1,
+                            display: 'block',
+                            fontWeight: 600,
+                          }}
+                        >
+                          Call
+                        </Typography>
+                      </Box>
                     )}
+                    {/* Email */}
                     {profile.contactInfo.email && (
-                      <ContactActionIcon
-                        icon={<EmailIcon sx={{ fontSize: 24, color: '#2D6EF5' }} />}
-                        label="Email"
-                        onClick={() => handleContact('email', profile.contactInfo.email!)}
-                        backgroundColor="#EBF3FF"
-                      />
+                      <Box sx={{ textAlign: 'center' }}>
+                        <Box
+                          onClick={() => handleContact('email', profile.contactInfo.email!)}
+                          sx={{
+                            width: '100%',
+                            aspectRatio: '1',
+                            maxWidth: 64,
+                            mx: 'auto',
+                            borderRadius: '16px',
+                            backgroundColor: '#EBF3FF',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s',
+                            '&:hover': {
+                              backgroundColor: '#2D6EF5',
+                              transform: 'translateY(-2px)',
+                              boxShadow: '0 4px 12px rgba(45, 110, 245, 0.3)',
+                              '& .MuiSvgIcon-root': { color: '#FFFFFF' },
+                            },
+                          }}
+                        >
+                          <EmailIcon sx={{ fontSize: 28, color: '#2D6EF5', transition: 'color 0.2s' }} />
+                        </Box>
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            fontSize: '0.75rem',
+                            color: '#6B7280',
+                            mt: 1,
+                            display: 'block',
+                            fontWeight: 600,
+                          }}
+                        >
+                          Email
+                        </Typography>
+                      </Box>
                     )}
+                    {/* Chat */}
                     {profile.contactInfo.phone && (
-                      <ContactActionIcon
-                        icon={<WhatsAppIcon sx={{ fontSize: 24, color: '#25D366' }} />}
-                        label="Chat"
-                        onClick={() => handleContact('whatsapp', profile.contactInfo.phone!)}
-                        backgroundColor="#E8F8F0"
-                      />
+                      <Box sx={{ textAlign: 'center' }}>
+                        <Box
+                          onClick={() => handleContact('whatsapp', profile.contactInfo.phone!)}
+                          sx={{
+                            width: '100%',
+                            aspectRatio: '1',
+                            maxWidth: 64,
+                            mx: 'auto',
+                            borderRadius: '16px',
+                            backgroundColor: '#E8F8F0',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s',
+                            '&:hover': {
+                              backgroundColor: '#25D366',
+                              transform: 'translateY(-2px)',
+                              boxShadow: '0 4px 12px rgba(37, 211, 102, 0.3)',
+                              '& .MuiSvgIcon-root': { color: '#FFFFFF' },
+                            },
+                          }}
+                        >
+                          <ChatIcon sx={{ fontSize: 28, color: '#25D366', transition: 'color 0.2s' }} />
+                        </Box>
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            fontSize: '0.75rem',
+                            color: '#6B7280',
+                            mt: 1,
+                            display: 'block',
+                            fontWeight: 600,
+                          }}
+                        >
+                          Chat
+                        </Typography>
+                      </Box>
                     )}
-                    {profile.contactInfo.address?.city && (
-                      <ContactActionIcon
-                        icon={<LocationIcon sx={{ fontSize: 24, color: '#F59E0B' }} />}
-                        label="Map"
-                        onClick={() => handleContact('location', '')}
-                        backgroundColor="#FFF7ED"
-                      />
+                    {/* Web/Location */}
+                    {(profile.contactInfo.website || profile.contactInfo.address?.city) && (
+                      <Box sx={{ textAlign: 'center' }}>
+                        <Box
+                          onClick={() => {
+                            if (profile.contactInfo.website) {
+                              window.open(profile.contactInfo.website, '_blank');
+                            } else if (profile.contactInfo.address?.city) {
+                              handleContact('location', '');
+                            }
+                          }}
+                          sx={{
+                            width: '100%',
+                            aspectRatio: '1',
+                            maxWidth: 64,
+                            mx: 'auto',
+                            borderRadius: '16px',
+                            backgroundColor: profile.contactInfo.website ? '#F3F4F6' : '#FFF7ED',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s',
+                            '&:hover': {
+                              backgroundColor: profile.contactInfo.website ? '#6B7280' : '#F59E0B',
+                              transform: 'translateY(-2px)',
+                              boxShadow: profile.contactInfo.website
+                                ? '0 4px 12px rgba(107, 114, 128, 0.3)'
+                                : '0 4px 12px rgba(245, 158, 11, 0.3)',
+                              '& .MuiSvgIcon-root': { color: '#FFFFFF' },
+                            },
+                          }}
+                        >
+                          {profile.contactInfo.website ? (
+                            <PublicIcon
+                              sx={{
+                                fontSize: 28,
+                                color: '#6B7280',
+                                transition: 'color 0.2s',
+                              }}
+                            />
+                          ) : (
+                            <LocationIcon
+                              sx={{
+                                fontSize: 28,
+                                color: '#F59E0B',
+                                transition: 'color 0.2s',
+                              }}
+                            />
+                          )}
+                        </Box>
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            fontSize: '0.75rem',
+                            color: '#6B7280',
+                            mt: 1,
+                            display: 'block',
+                            fontWeight: 600,
+                          }}
+                        >
+                          {profile.contactInfo.website ? 'Web' : 'Map'}
+                        </Typography>
+                      </Box>
                     )}
                   </Box>
+
+                  {/* Resources Section */}
+                  {customLinks && customLinks.length > 0 && (
+                    <Box sx={{ mb: 3 }}>
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          fontWeight: 700,
+                          fontSize: '0.75rem',
+                          color: '#9CA3AF',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.08em',
+                          mb: 2,
+                          display: 'block',
+                        }}
+                      >
+                        RESOURCES
+                      </Typography>
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                        {customLinks.map((link, index) => (
+                          <Box
+                            key={index}
+                            onClick={() => {
+                              if (link.url) {
+                                window.open(link.url, '_blank');
+                              }
+                            }}
+                            sx={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              p: 2,
+                              borderRadius: '12px',
+                              backgroundColor: '#FFFFFF',
+                              border: '1px solid #E5E7EB',
+                              cursor: 'pointer',
+                              transition: 'all 0.2s',
+                              '&:hover': {
+                                borderColor: '#2D6EF5',
+                                boxShadow: '0 2px 8px rgba(45, 110, 245, 0.1)',
+                              },
+                            }}
+                          >
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                              <Box
+                                sx={{
+                                  width: 40,
+                                  height: 40,
+                                  borderRadius: '10px',
+                                  backgroundColor: link.icon === 'file' ? '#FEF2F2' : '#F5F3FF',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                }}
+                              >
+                                {link.icon === 'file' ? (
+                                  <DownloadIcon sx={{ fontSize: 20, color: '#EF4444' }} />
+                                ) : (
+                                  <EventIcon sx={{ fontSize: 20, color: '#8B5CF6' }} />
+                                )}
+                              </Box>
+                              <Box>
+                                <Typography
+                                  variant="caption"
+                                  sx={{
+                                    fontWeight: 600,
+                                    fontSize: '0.875rem',
+                                    color: '#1A1A1A',
+                                    display: 'block',
+                                  }}
+                                >
+                                  {link.label || link.platform || 'Custom Link'}
+                                </Typography>
+                                <Typography
+                                  variant="caption"
+                                  sx={{ fontSize: '0.75rem', color: '#9CA3AF' }}
+                                >
+                                  {link.icon === 'file' ? 'Download' : 'View'}
+                                </Typography>
+                              </Box>
+                            </Box>
+                            <ChevronRightIcon sx={{ fontSize: 20, color: '#9CA3AF' }} />
+                          </Box>
+                        ))}
+                      </Box>
+                    </Box>
+                  )}
+
+                  {/* Location Map */}
+                  {profile.contactInfo.address?.city && (
+                    <Box sx={{ mb: 2.5 }}>
+                      <LocationMap
+                        address={profile.contactInfo.address}
+                        locationLabel={`${profile.contactInfo.address.city}${
+                          profile.contactInfo.address.state ? ', ' + profile.contactInfo.address.state : ''
+                        }`}
+                      />
+                    </Box>
+                  )}
+
+                  {/* Social Media Links - Circular Gray Icons */}
+                  {(profile.socialLinks?.linkedin ||
+                    profile.socialLinks?.instagram ||
+                    profile.socialLinks?.twitter ||
+                    profile.socialLinks?.facebook ||
+                    profile.socialLinks?.youtube ||
+                    profile.socialLinks?.github) && (
+                    <Box sx={{ mb: 3 }}>
+                      <Box
+                        sx={{
+                          display: 'flex',
+                          justifyContent: 'center',
+                          flexWrap: 'wrap',
+                          gap: 2,
+                        }}
+                      >
+                        {profile.socialLinks.linkedin && (
+                          <Box
+                            onClick={() => window.open(profile.socialLinks.linkedin, '_blank')}
+                            sx={{
+                              width: 44,
+                              height: 44,
+                              borderRadius: '50%',
+                              backgroundColor: '#E5E7EB',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              cursor: 'pointer',
+                              transition: 'all 0.2s',
+                              '&:hover': {
+                                backgroundColor: '#0A66C2',
+                                transform: 'translateY(-2px)',
+                                boxShadow: '0 4px 8px rgba(10, 102, 194, 0.3)',
+                                '& .MuiSvgIcon-root': { color: '#FFFFFF' },
+                              },
+                            }}
+                          >
+                            <LinkedIn sx={{ fontSize: 20, color: '#6B7280', transition: 'color 0.2s' }} />
+                          </Box>
+                        )}
+                        {profile.socialLinks.instagram && (
+                          <Box
+                            onClick={() => window.open(profile.socialLinks.instagram, '_blank')}
+                            sx={{
+                              width: 44,
+                              height: 44,
+                              borderRadius: '50%',
+                              backgroundColor: '#E5E7EB',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              cursor: 'pointer',
+                              transition: 'all 0.2s',
+                              '&:hover': {
+                                backgroundColor: '#E4405F',
+                                transform: 'translateY(-2px)',
+                                boxShadow: '0 4px 8px rgba(228, 64, 95, 0.3)',
+                                '& .MuiSvgIcon-root': { color: '#FFFFFF' },
+                              },
+                            }}
+                          >
+                            <Instagram sx={{ fontSize: 20, color: '#6B7280', transition: 'color 0.2s' }} />
+                          </Box>
+                        )}
+                        {profile.socialLinks.twitter && (
+                          <Box
+                            onClick={() => window.open(profile.socialLinks.twitter, '_blank')}
+                            sx={{
+                              width: 44,
+                              height: 44,
+                              borderRadius: '50%',
+                              backgroundColor: '#E5E7EB',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              cursor: 'pointer',
+                              transition: 'all 0.2s',
+                              '&:hover': {
+                                backgroundColor: '#1DA1F2',
+                                transform: 'translateY(-2px)',
+                                boxShadow: '0 4px 8px rgba(29, 161, 242, 0.3)',
+                                '& .MuiSvgIcon-root': { color: '#FFFFFF' },
+                              },
+                            }}
+                          >
+                            <Twitter sx={{ fontSize: 20, color: '#6B7280', transition: 'color 0.2s' }} />
+                          </Box>
+                        )}
+                        {profile.socialLinks.facebook && (
+                          <Box
+                            onClick={() => window.open(profile.socialLinks.facebook, '_blank')}
+                            sx={{
+                              width: 44,
+                              height: 44,
+                              borderRadius: '50%',
+                              backgroundColor: '#E5E7EB',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              cursor: 'pointer',
+                              transition: 'all 0.2s',
+                              '&:hover': {
+                                backgroundColor: '#1877F2',
+                                transform: 'translateY(-2px)',
+                                boxShadow: '0 4px 8px rgba(24, 119, 242, 0.3)',
+                                '& .MuiSvgIcon-root': { color: '#FFFFFF' },
+                              },
+                            }}
+                          >
+                            <Facebook sx={{ fontSize: 20, color: '#6B7280', transition: 'color 0.2s' }} />
+                          </Box>
+                        )}
+                        {profile.socialLinks.youtube && (
+                          <Box
+                            onClick={() => window.open(profile.socialLinks.youtube, '_blank')}
+                            sx={{
+                              width: 44,
+                              height: 44,
+                              borderRadius: '50%',
+                              backgroundColor: '#E5E7EB',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              cursor: 'pointer',
+                              transition: 'all 0.2s',
+                              '&:hover': {
+                                backgroundColor: '#FF0000',
+                                transform: 'translateY(-2px)',
+                                boxShadow: '0 4px 8px rgba(255, 0, 0, 0.3)',
+                                '& .MuiSvgIcon-root': { color: '#FFFFFF' },
+                              },
+                            }}
+                          >
+                            <YouTube sx={{ fontSize: 20, color: '#6B7280', transition: 'color 0.2s' }} />
+                          </Box>
+                        )}
+                        {profile.socialLinks.github && (
+                          <Box
+                            onClick={() => window.open(profile.socialLinks.github, '_blank')}
+                            sx={{
+                              width: 44,
+                              height: 44,
+                              borderRadius: '50%',
+                              backgroundColor: '#E5E7EB',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              cursor: 'pointer',
+                              transition: 'all 0.2s',
+                              '&:hover': {
+                                backgroundColor: '#333',
+                                transform: 'translateY(-2px)',
+                                boxShadow: '0 4px 8px rgba(51, 51, 51, 0.3)',
+                                '& .MuiSvgIcon-root': { color: '#FFFFFF' },
+                              },
+                            }}
+                          >
+                            <GitHub sx={{ fontSize: 20, color: '#6B7280', transition: 'color 0.2s' }} />
+                          </Box>
+                        )}
+                      </Box>
+                    </Box>
+                  )}
+
+                  {/* Business Hours */}
+                  {profile.businessHours && profile.businessHours.some((h) => h.isOpen) && (
+                    <Box sx={{ mb: 2.5 }}>
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          fontWeight: 700,
+                          fontSize: '0.6875rem',
+                          color: '#6B7280',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.05em',
+                          mb: 1,
+                          display: 'block',
+                        }}
+                      >
+                        Business Hours
+                      </Typography>
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
+                        {profile.businessHours
+                          ?.filter((h) => h.isOpen)
+                          .map((daySchedule) => (
+                            <Box
+                              key={daySchedule.day}
+                              sx={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                py: 0.5,
+                                px: 1,
+                                borderRadius: '8px',
+                                backgroundColor: '#FFFFFF',
+                              }}
+                            >
+                              <Typography
+                                variant="caption"
+                                sx={{
+                                  fontWeight: 600,
+                                  fontSize: '0.6875rem',
+                                  textTransform: 'capitalize',
+                                  color: '#1A1A1A',
+                                }}
+                              >
+                                {daySchedule.day}
+                              </Typography>
+                              <Typography variant="caption" sx={{ fontSize: '0.6875rem', color: '#6B7280' }}>
+                                {daySchedule.openTime} - {daySchedule.closeTime}
+                              </Typography>
+                            </Box>
+                          ))}
+                      </Box>
+                    </Box>
+                  )}
 
                   {/* Save Contact Button */}
                   <Button
                     fullWidth
                     variant="contained"
-                    size="large"
-                    startIcon={<SaveContactIcon />}
+                    startIcon={<PersonAddIcon />}
                     onClick={() => setSaveModalOpen(true)}
                     sx={{
-                      mb: 2,
-                      height: 52,
-                      fontSize: '1rem',
+                      mb: 2.5,
+                      height: 48,
+                      fontSize: '0.9375rem',
                       fontWeight: 600,
-                      borderRadius: '12px',
+                      borderRadius: '14px',
                       textTransform: 'none',
                       backgroundColor: '#2D6EF5',
-                      boxShadow: '0px 4px 12px rgba(45, 110, 245, 0.3)',
+                      boxShadow: '0 4px 12px rgba(45, 110, 245, 0.3)',
                       '&:hover': {
-                        backgroundColor: '#1E5BE6',
-                        boxShadow: '0px 6px 16px rgba(45, 110, 245, 0.4)',
+                        backgroundColor: '#1E5DD8',
+                        boxShadow: '0 6px 16px rgba(45, 110, 245, 0.4)',
                       },
                     }}
                   >
                     Save Contact
                   </Button>
 
-                  {/* Action Buttons */}
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mb: 3 }}>
-                    {websiteLink && (
-                      <ActionButton
-                        icon={<WebsiteIcon sx={{ fontSize: 20 }} />}
-                        label="Visit Website"
-                        href={websiteLink.url}
-                      />
-                    )}
-                    {portfolioLink && (
-                      <ActionButton
-                        icon={<FileIcon sx={{ fontSize: 20 }} />}
-                        label="Company Portfolio"
-                        href={portfolioLink.url}
-                      />
-                    )}
-                    {profile.contactInfo.website && !websiteLink && (
-                      <ActionButton
-                        icon={<WebsiteIcon sx={{ fontSize: 20 }} />}
-                        label="Visit Website"
-                        href={profile.contactInfo.website}
-                      />
-                    )}
-                    <ActionButton
-                      icon={<CalendarIcon sx={{ fontSize: 20 }} />}
-                      label="Book a Meeting"
-                      onClick={() => trackEvent('click', { elementClicked: 'book_meeting' })}
-                    />
-                  </Box>
-
-                  {/* Social Media Links */}
-                  {(profile.socialLinks?.linkedin ||
-                    profile.socialLinks?.instagram ||
-                    profile.socialLinks?.twitter ||
-                    profile.socialLinks?.github) && (
-                    <>
-                      <Typography
-                        variant="overline"
-                        sx={{
-                          display: 'block',
-                          textAlign: 'center',
-                          color: '#9CA3AF',
-                          fontSize: '0.75rem',
-                          fontWeight: 600,
-                          mb: 1.5,
-                          letterSpacing: '0.05em',
-                        }}
-                      >
-                        CONNECT
-                      </Typography>
-                      <Box
-                        sx={{
-                          display: 'flex',
-                          justifyContent: 'center',
-                          gap: 2,
-                          mb: 3,
-                        }}
-                      >
-                        {profile.socialLinks.linkedin && (
-                          <IconButton
-                            onClick={() => window.open(profile.socialLinks.linkedin, '_blank')}
-                            sx={{
-                              color: '#0A66C2',
-                              '&:hover': { backgroundColor: 'rgba(10, 102, 194, 0.1)' },
-                            }}
-                          >
-                            <LinkedIn sx={{ fontSize: 24 }} />
-                          </IconButton>
-                        )}
-                        {profile.socialLinks.instagram && (
-                          <IconButton
-                            onClick={() => window.open(profile.socialLinks.instagram, '_blank')}
-                            sx={{
-                              color: '#E4405F',
-                              '&:hover': { backgroundColor: 'rgba(228, 64, 95, 0.1)' },
-                            }}
-                          >
-                            <Instagram sx={{ fontSize: 24 }} />
-                          </IconButton>
-                        )}
-                        {profile.socialLinks.twitter && (
-                          <IconButton
-                            onClick={() => window.open(profile.socialLinks.twitter, '_blank')}
-                            sx={{
-                              color: '#1DA1F2',
-                              '&:hover': { backgroundColor: 'rgba(29, 161, 242, 0.1)' },
-                            }}
-                          >
-                            <Twitter sx={{ fontSize: 24 }} />
-                          </IconButton>
-                        )}
-                        {profile.socialLinks.github && (
-                          <IconButton
-                            onClick={() => window.open(profile.socialLinks.github, '_blank')}
-                            sx={{
-                              color: '#333',
-                              '&:hover': { backgroundColor: 'rgba(51, 51, 51, 0.1)' },
-                            }}
-                          >
-                            <GitHub sx={{ fontSize: 24 }} />
-                          </IconButton>
-                        )}
-                      </Box>
-                    </>
-                  )}
-
-                  {/* Location Map */}
-                  {profile.contactInfo.address?.city && (
-                    <LocationMap
-                      address={profile.contactInfo.address}
-                      locationLabel={`${profile.contactInfo.address.city}${
-                        profile.contactInfo.address.state ? ', ' + profile.contactInfo.address.state : ''
-                      }`}
-                    />
-                  )}
-
-                  {/* Footer Links */}
-                  <Box
-                    sx={{
-                      display: 'flex',
-                      justifyContent: 'center',
-                      gap: 2,
-                      mt: 4,
-                      pt: 3,
-                      borderTop: '1px solid #E5E7EB',
-                    }}
-                  >
+                  {/* Powered By Footer */}
+                  <Box sx={{ textAlign: 'center', pt: 3, pb: 3 }}>
                     <Typography
                       variant="caption"
                       sx={{
-                        color: '#9CA3AF',
                         fontSize: '0.75rem',
-                        cursor: 'pointer',
-                        '&:hover': { color: '#6B7280' },
-                      }}
-                    >
-                      Privacy Policy
-                    </Typography>
-                    <Typography variant="caption" sx={{ color: '#E5E7EB' }}>
-                      •
-                    </Typography>
-                    <Typography
-                      variant="caption"
-                      sx={{
                         color: '#9CA3AF',
-                        fontSize: '0.75rem',
-                        cursor: 'pointer',
-                        '&:hover': { color: '#6B7280' },
+                        letterSpacing: '0.05em',
+                        fontWeight: 600,
                       }}
                     >
-                      Report Profile
-                    </Typography>
-                  </Box>
-
-                  {/* BBTap Branding */}
-                  <Box sx={{ textAlign: 'center', mt: 2 }}>
-                    <Typography
-                      variant="caption"
-                      sx={{
-                        color: '#D1D5DB',
-                        fontSize: '0.7rem',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: 0.5,
-                      }}
-                    >
-                      ⚡ BBTap
+                      POWERED BY BBTAP
                     </Typography>
                   </Box>
                 </Box>
               </Box>
             </motion.div>
-          </Box>
-
-          {/* Right Column - CTA (Desktop only) */}
-          <Box
-            sx={{
-              display: { xs: 'none', lg: 'block' },
-              width: 240,
-              position: 'sticky',
-              top: 80,
-              height: 'fit-content',
-            }}
-          >
-            <motion.div
-              initial={{ opacity: 0, x: 30 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.3 }}
-            >
-              <Box
-                sx={{
-                  backgroundColor: '#1A1A1A',
-                  borderRadius: '16px',
-                  p: 3,
-                  textAlign: 'center',
-                }}
-              >
-                <Typography
-                  variant="h6"
-                  sx={{
-                    color: '#FFFFFF',
-                    fontWeight: 700,
-                    mb: 1,
-                    fontSize: '1.125rem',
-                  }}
-                >
-                  Create your profile
-                </Typography>
-                <Typography
-                  variant="body2"
-                  sx={{
-                    color: '#9CA3AF',
-                    mb: 2.5,
-                    fontSize: '0.875rem',
-                  }}
-                >
-                  Get your own digital business card
-                </Typography>
-                <Button
-                  fullWidth
-                  variant="contained"
-                  endIcon={<span>→</span>}
-                  sx={{
-                    backgroundColor: '#FFFFFF',
-                    color: '#1A1A1A',
-                    fontWeight: 600,
-                    '&:hover': {
-                      backgroundColor: '#F3F4F6',
-                    },
-                  }}
-                  onClick={() => (window.location.href = '/register')}
-                >
-                  Create your profile
-                </Button>
-              </Box>
-            </motion.div>
-          </Box>
-        </Box>
-
-        {/* Mobile QR Code - Show at bottom on mobile */}
-        <Box
-          sx={{
-            display: { xs: 'flex', lg: 'none' },
-            justifyContent: 'center',
-            mt: 3,
-          }}
-        >
-          <QRCodeCard url={profileUrl} size={160} />
-        </Box>
-
-        {/* Mobile CTA Button - Fixed at bottom */}
-        <Box
-          sx={{
-            display: { xs: 'block', lg: 'none' },
-            position: 'fixed',
-            bottom: 0,
-            left: 0,
-            right: 0,
-            p: 2,
-            backgroundColor: '#FFFFFF',
-            borderTop: '1px solid #E5E7EB',
-            boxShadow: '0px -4px 12px rgba(0, 0, 0, 0.08)',
-          }}
-        >
-          <Button
-            fullWidth
-            variant="contained"
-            endIcon={<span>→</span>}
-            sx={{
-              backgroundColor: '#1A1A1A',
-              color: '#FFFFFF',
-              height: 48,
-              fontWeight: 600,
-              '&:hover': {
-                backgroundColor: '#2D2D2D',
-              },
-            }}
-            onClick={() => (window.location.href = '/register')}
-          >
-            Create your profile
-          </Button>
-        </Box>
       </Container>
 
       {/* Save Contact Modal */}

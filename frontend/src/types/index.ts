@@ -2,11 +2,76 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  role: 'user' | 'admin';
+  role: 'user' | 'admin' | 'org_admin' | 'super_admin';
   avatar?: string;
   isEmailVerified: boolean;
   subscription?: Subscription;
+  organization?: string | Organization;
+  organizationRole?: 'member' | 'admin' | 'owner';
+  department?: string;
+  jobTitle?: string;
   createdAt: string;
+}
+
+export interface Organization {
+  id: string;
+  _id?: string;
+  name: string;
+  slug: string;
+  subdomain?: string;
+  description?: string;
+  logo?: string;
+  contactInfo?: {
+    email?: string;
+    phone?: string;
+    website?: string;
+    address?: {
+      street?: string;
+      city?: string;
+      state?: string;
+      country?: string;
+      postalCode?: string;
+      latitude?: number;
+      longitude?: number;
+    };
+  };
+  branding?: {
+    primaryColor?: string;
+    secondaryColor?: string;
+    logo?: string;
+    customCSS?: string;
+    customDomain?: string;
+  };
+  subscription?: {
+    plan: 'free' | 'starter' | 'business' | 'enterprise';
+    status: 'active' | 'trial' | 'cancelled' | 'expired';
+    validUntil?: string;
+  };
+  limits?: {
+    maxUsers: number;
+    maxCards: number;
+    maxProfiles: number;
+    maxStorage: number;
+  };
+  usage?: {
+    users: number;
+    cards: number;
+    profiles: number;
+    storage: number;
+  };
+  settings?: {
+    allowUserRegistration?: boolean;
+    requireEmailVerification?: boolean;
+    defaultUserRole?: string;
+    twoFactorRequired?: boolean;
+    allowCustomDomains?: boolean;
+    features?: string[];
+  };
+  owner: string | User;
+  admins?: string[] | User[];
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Subscription {
@@ -56,6 +121,8 @@ export interface Profile {
       state?: string;
       country?: string;
       postalCode?: string;
+      latitude?: number;
+      longitude?: number;
     };
   };
   socialLinks: {

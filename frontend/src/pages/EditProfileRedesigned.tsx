@@ -11,6 +11,8 @@ import {
   Divider,
   Tooltip,
   MenuItem,
+  Switch,
+  FormControlLabel,
 } from '@mui/material';
 import {
   CloudUpload as UploadIcon,
@@ -22,6 +24,21 @@ import {
   WhatsApp as WhatsAppIcon,
   Language as WebsiteIcon,
   Description as FileIcon,
+  LinkedIn as LinkedInIcon,
+  Twitter as TwitterIcon,
+  Facebook as FacebookIcon,
+  Instagram as InstagramIcon,
+  YouTube as YouTubeIcon,
+  GitHub as GitHubIcon,
+  Share as ShareIcon,
+  Business as BusinessIcon,
+  Download as DownloadIcon,
+  Event as EventIcon,
+  ChevronRight as ChevronRightIcon,
+  PersonAdd as PersonAddIcon,
+  Chat as ChatIcon,
+  Public as PublicIcon,
+  LocationOn as LocationIcon,
 } from '@mui/icons-material';
 import { useParams, useNavigate } from 'react-router-dom';
 import { profilesAPI, uploadAPI, templatesAPI } from '../services/api';
@@ -29,6 +46,7 @@ import { Profile, Template } from '../types';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import GoogleMapsPicker from '../components/GoogleMapsPicker';
 
 // Sortable Contact Action Item
 interface SortableItemProps {
@@ -101,9 +119,18 @@ const SortableItem: React.FC<SortableItemProps> = ({ id, icon, label, type, onDe
 interface MobilePreviewProps {
   profile: Partial<Profile>;
   orientation?: 'portrait' | 'landscape';
+  showSaveButton?: boolean;
+  showLocation?: boolean;
+  showBusinessHours?: boolean;
 }
 
-const MobilePreview: React.FC<MobilePreviewProps> = ({ profile, orientation = 'portrait' }) => {
+const MobilePreview: React.FC<MobilePreviewProps> = ({
+  profile,
+  orientation = 'portrait',
+  showSaveButton = true,
+  showLocation = true,
+  showBusinessHours = true
+}) => {
   const fullName = `${profile.personalInfo?.firstName || ''} ${profile.personalInfo?.lastName || ''}`.trim();
   const isLandscape = orientation === 'landscape';
 
@@ -142,26 +169,44 @@ const MobilePreview: React.FC<MobilePreviewProps> = ({ profile, orientation = 'p
         sx={{
           width: '100%',
           height: '100%',
-          backgroundColor: '#FFFFFF',
+          backgroundColor: '#F9FAFB',
           borderRadius: '24px',
           overflow: 'hidden',
           position: 'relative',
         }}
       >
         {/* Profile Content */}
-        <Box sx={{ height: '100%', overflowY: 'auto' }}>
+        <Box sx={{ height: '100%', overflowY: 'auto', backgroundColor: '#F9FAFB' }}>
           {/* Header with gradient or cover image */}
           <Box
             sx={{
               background: profile.customization?.backgroundImage
                 ? `url(${profile.customization.backgroundImage})`
-                : 'linear-gradient(135deg, #2D6EF5 0%, #4A8DF8 100%)',
+                : 'linear-gradient(135deg, #667EEA 0%, #764BA2 100%)',
               backgroundSize: 'cover',
               backgroundPosition: 'center',
-              height: 120,
+              height: 140,
               position: 'relative',
             }}
-          />
+          >
+            {/* Share Button */}
+            <IconButton
+              sx={{
+                position: 'absolute',
+                top: 12,
+                right: 12,
+                backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                width: 32,
+                height: 32,
+                '&:hover': {
+                  backgroundColor: '#FFFFFF',
+                },
+              }}
+              size="small"
+            >
+              <ShareIcon sx={{ fontSize: 16, color: '#1A1A1A' }} />
+            </IconButton>
+          </Box>
 
           {/* Profile Content */}
           <Box sx={{ px: 2.5, pb: 3 }}>
@@ -203,8 +248,8 @@ const MobilePreview: React.FC<MobilePreviewProps> = ({ profile, orientation = 'p
                 sx={{
                   fontWeight: 700,
                   color: '#1A1A1A',
-                  mb: 0.25,
-                  fontSize: '1.125rem',
+                  mb: 0.5,
+                  fontSize: '1.25rem',
                 }}
               >
                 {fullName || 'Your Name'}
@@ -214,22 +259,25 @@ const MobilePreview: React.FC<MobilePreviewProps> = ({ profile, orientation = 'p
                 sx={{
                   color: '#2D6EF5',
                   fontWeight: 600,
-                  fontSize: '0.8125rem',
-                  mb: 0.25,
+                  fontSize: '0.875rem',
+                  mb: 0.75,
                 }}
               >
                 {profile.personalInfo?.title || 'Your Title'}
               </Typography>
               {profile.personalInfo?.company && (
-                <Typography
-                  variant="caption"
-                  sx={{
-                    color: '#6B7280',
-                    fontSize: '0.75rem',
-                  }}
-                >
-                  {profile.personalInfo.company}
-                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5 }}>
+                  <BusinessIcon sx={{ fontSize: 14, color: '#9CA3AF' }} />
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      color: '#6B7280',
+                      fontSize: '0.8125rem',
+                    }}
+                  >
+                    {profile.personalInfo.company}
+                  </Typography>
+                </Box>
               )}
             </Box>
 
@@ -238,147 +286,518 @@ const MobilePreview: React.FC<MobilePreviewProps> = ({ profile, orientation = 'p
               <Typography
                 variant="body2"
                 sx={{
-                  color: '#4B5563',
+                  color: '#6B7280',
                   textAlign: 'center',
-                  mb: 2,
-                  lineHeight: 1.4,
-                  fontSize: '0.75rem',
+                  mb: 2.5,
+                  lineHeight: 1.6,
+                  fontSize: '0.8125rem',
+                  px: 1,
                 }}
               >
                 {profile.personalInfo.bio}
               </Typography>
             )}
 
-            {/* Quick Actions */}
+            {/* Quick Actions - 4 Buttons */}
             <Box
               sx={{
-                display: 'flex',
-                justifyContent: 'center',
+                display: 'grid',
+                gridTemplateColumns: 'repeat(4, 1fr)',
                 gap: 1.5,
-                mb: 2,
+                mb: 2.5,
               }}
             >
+              {/* Call */}
               <Box sx={{ textAlign: 'center' }}>
                 <Box
                   sx={{
-                    width: 44,
-                    height: 44,
-                    borderRadius: '12px',
+                    width: '100%',
+                    aspectRatio: '1',
+                    maxWidth: 56,
+                    mx: 'auto',
+                    borderRadius: '16px',
                     backgroundColor: '#EBF3FF',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    '&:hover': {
+                      backgroundColor: '#2D6EF5',
+                      transform: 'translateY(-2px)',
+                      '& .MuiSvgIcon-root': {
+                        color: '#FFFFFF',
+                      },
+                    },
                   }}
                 >
-                  <PhoneIcon sx={{ fontSize: 20, color: '#2D6EF5' }} />
+                  <PhoneIcon sx={{ fontSize: 24, color: '#2D6EF5', transition: 'color 0.2s' }} />
                 </Box>
-                <Typography variant="caption" sx={{ fontSize: '0.65rem', color: '#6B7280', mt: 0.5, display: 'block' }}>
+                <Typography variant="caption" sx={{ fontSize: '0.6875rem', color: '#6B7280', mt: 0.75, display: 'block', fontWeight: 500 }}>
                   Call
                 </Typography>
               </Box>
+
+              {/* Email */}
               <Box sx={{ textAlign: 'center' }}>
                 <Box
                   sx={{
-                    width: 44,
-                    height: 44,
-                    borderRadius: '12px',
+                    width: '100%',
+                    aspectRatio: '1',
+                    maxWidth: 56,
+                    mx: 'auto',
+                    borderRadius: '16px',
                     backgroundColor: '#EBF3FF',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    '&:hover': {
+                      backgroundColor: '#2D6EF5',
+                      transform: 'translateY(-2px)',
+                      '& .MuiSvgIcon-root': {
+                        color: '#FFFFFF',
+                      },
+                    },
                   }}
                 >
-                  <EmailIcon sx={{ fontSize: 20, color: '#2D6EF5' }} />
+                  <EmailIcon sx={{ fontSize: 24, color: '#2D6EF5', transition: 'color 0.2s' }} />
                 </Box>
-                <Typography variant="caption" sx={{ fontSize: '0.65rem', color: '#6B7280', mt: 0.5, display: 'block' }}>
+                <Typography variant="caption" sx={{ fontSize: '0.6875rem', color: '#6B7280', mt: 0.75, display: 'block', fontWeight: 500 }}>
                   Email
                 </Typography>
               </Box>
+
+              {/* Chat */}
               <Box sx={{ textAlign: 'center' }}>
                 <Box
                   sx={{
-                    width: 44,
-                    height: 44,
-                    borderRadius: '12px',
-                    backgroundColor: '#E8F8F0',
+                    width: '100%',
+                    aspectRatio: '1',
+                    maxWidth: 56,
+                    mx: 'auto',
+                    borderRadius: '16px',
+                    backgroundColor: '#F0FDF4',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    '&:hover': {
+                      backgroundColor: '#25D366',
+                      transform: 'translateY(-2px)',
+                      '& .MuiSvgIcon-root': {
+                        color: '#FFFFFF',
+                      },
+                    },
                   }}
                 >
-                  <WhatsAppIcon sx={{ fontSize: 20, color: '#25D366' }} />
+                  <WhatsAppIcon sx={{ fontSize: 24, color: '#25D366', transition: 'color 0.2s' }} />
                 </Box>
-                <Typography variant="caption" sx={{ fontSize: '0.65rem', color: '#6B7280', mt: 0.5, display: 'block' }}>
+                <Typography variant="caption" sx={{ fontSize: '0.6875rem', color: '#6B7280', mt: 0.75, display: 'block', fontWeight: 500 }}>
                   Chat
+                </Typography>
+              </Box>
+
+              {/* Web */}
+              <Box sx={{ textAlign: 'center' }}>
+                <Box
+                  sx={{
+                    width: '100%',
+                    aspectRatio: '1',
+                    maxWidth: 56,
+                    mx: 'auto',
+                    borderRadius: '16px',
+                    backgroundColor: '#F3F4F6',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    '&:hover': {
+                      backgroundColor: '#6B7280',
+                      transform: 'translateY(-2px)',
+                      '& .MuiSvgIcon-root': {
+                        color: '#FFFFFF',
+                      },
+                    },
+                  }}
+                >
+                  <PublicIcon sx={{ fontSize: 24, color: '#6B7280', transition: 'color 0.2s' }} />
+                </Box>
+                <Typography variant="caption" sx={{ fontSize: '0.6875rem', color: '#6B7280', mt: 0.75, display: 'block', fontWeight: 500 }}>
+                  Web
                 </Typography>
               </Box>
             </Box>
 
-            {/* Save Contact Button */}
-            <Button
-              fullWidth
-              variant="contained"
-              size="small"
-              sx={{
-                mb: 1,
-                height: 40,
-                fontSize: '0.8125rem',
-                fontWeight: 600,
-                borderRadius: '10px',
-                textTransform: 'none',
-                backgroundColor: '#2D6EF5',
-                boxShadow: '0px 2px 8px rgba(45, 110, 245, 0.3)',
-              }}
-            >
-              Save Contact
-            </Button>
+            {/* Resources Section */}
+            {profile.socialLinks?.custom && profile.socialLinks.custom.length > 0 && (
+              <Box sx={{ mb: 2.5 }}>
+                <Typography
+                  variant="caption"
+                  sx={{
+                    fontWeight: 700,
+                    fontSize: '0.6875rem',
+                    color: '#9CA3AF',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.08em',
+                    mb: 1.5,
+                    display: 'block',
+                  }}
+                >
+                  RESOURCES
+                </Typography>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
+                  {profile.socialLinks.custom.map((link, index) => (
+                    <Box
+                      key={index}
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        p: 1.5,
+                        borderRadius: '12px',
+                        backgroundColor: '#FFFFFF',
+                        border: '1px solid #E5E7EB',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                        '&:hover': {
+                          borderColor: '#2D6EF5',
+                          boxShadow: '0 2px 8px rgba(45, 110, 245, 0.1)',
+                        },
+                      }}
+                    >
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
+                        <Box
+                          sx={{
+                            width: 36,
+                            height: 36,
+                            borderRadius: '10px',
+                            backgroundColor: '#FEF2F2',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}
+                        >
+                          {link.icon === 'file' ? (
+                            <DownloadIcon sx={{ fontSize: 18, color: '#EF4444' }} />
+                          ) : (
+                            <EventIcon sx={{ fontSize: 18, color: '#8B5CF6' }} />
+                          )}
+                        </Box>
+                        <Box>
+                          <Typography variant="caption" sx={{ fontWeight: 600, fontSize: '0.8125rem', color: '#1A1A1A', display: 'block' }}>
+                            {link.label || link.platform || 'Custom Link'}
+                          </Typography>
+                          <Typography variant="caption" sx={{ fontSize: '0.6875rem', color: '#9CA3AF' }}>
+                            {link.icon === 'file' ? 'PDF, 4.2 MB' : '30 min intro call'}
+                          </Typography>
+                        </Box>
+                      </Box>
+                      <ChevronRightIcon sx={{ fontSize: 18, color: '#9CA3AF' }} />
+                    </Box>
+                  ))}
+                </Box>
+              </Box>
+            )}
 
-            {/* Action Buttons */}
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mb: 2 }}>
-              <Box
+            {/* Location Map */}
+            {showLocation && (
+              <Box sx={{ mb: 2.5 }}>
+                <Typography
+                  variant="caption"
+                  sx={{
+                    fontWeight: 700,
+                    fontSize: '0.6875rem',
+                    color: '#6B7280',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    mb: 1.5,
+                    display: 'block',
+                  }}
+                >
+                  LOCATION
+                </Typography>
+                <Box
+                  sx={{
+                    borderRadius: '12px',
+                    overflow: 'hidden',
+                    border: '1px solid #E5E7EB',
+                    backgroundColor: '#F9FAFB',
+                  }}
+                >
+                  {/* Static map placeholder - could be replaced with actual map */}
+                  <Box
+                    sx={{
+                      height: 120,
+                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      position: 'relative',
+                    }}
+                  >
+                    <LocationIcon sx={{ fontSize: 48, color: 'rgba(255, 255, 255, 0.8)' }} />
+                  </Box>
+                  <Box sx={{ p: 1.5 }}>
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        fontSize: '0.8125rem',
+                        fontWeight: 600,
+                        color: '#1A1A1A',
+                        display: 'block',
+                        mb: 0.5,
+                      }}
+                    >
+                      {profile.personalInfo?.company || 'Office Location'}
+                    </Typography>
+                    <Typography variant="caption" sx={{ fontSize: '0.75rem', color: '#6B7280' }}>
+                      {profile.contactInfo?.address?.city ? (
+                        <>
+                          {profile.contactInfo.address.street && `${profile.contactInfo.address.street}, `}
+                          {profile.contactInfo.address.city}
+                          {profile.contactInfo.address.state && `, ${profile.contactInfo.address.state}`}
+                          {profile.contactInfo.address.postalCode && ` ${profile.contactInfo.address.postalCode}`}
+                        </>
+                      ) : (
+                        'Add your office address in the Address section below'
+                      )}
+                    </Typography>
+                  </Box>
+                </Box>
+              </Box>
+            )}
+
+            {/* Social Media Links */}
+            {(profile.socialLinks?.linkedin || profile.socialLinks?.twitter || profile.socialLinks?.facebook ||
+              profile.socialLinks?.instagram || profile.socialLinks?.youtube || profile.socialLinks?.github) && (
+              <Box sx={{ mb: 2.5 }}>
+                <Box
+                  sx={{
+                    display: 'flex',
+                    justifyContent: 'center',
+                    flexWrap: 'wrap',
+                    gap: 1.5,
+                  }}
+                >
+                  {profile.socialLinks?.linkedin && (
+                    <Box
+                      sx={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: '50%',
+                        backgroundColor: '#E5E7EB',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                        '&:hover': {
+                          backgroundColor: '#0A66C2',
+                          transform: 'translateY(-2px)',
+                          '& .MuiSvgIcon-root': {
+                            color: '#FFFFFF',
+                          },
+                        },
+                      }}
+                    >
+                      <LinkedInIcon sx={{ fontSize: 18, color: '#6B7280', transition: 'color 0.2s' }} />
+                    </Box>
+                  )}
+                  {profile.socialLinks?.instagram && (
+                    <Box
+                      sx={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: '50%',
+                        backgroundColor: '#E5E7EB',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                        '&:hover': {
+                          background: 'linear-gradient(45deg, #F58529, #DD2A7B, #8134AF)',
+                          transform: 'translateY(-2px)',
+                          '& .MuiSvgIcon-root': {
+                            color: '#FFFFFF',
+                          },
+                        },
+                      }}
+                    >
+                      <InstagramIcon sx={{ fontSize: 18, color: '#6B7280', transition: 'color 0.2s' }} />
+                    </Box>
+                  )}
+                  {profile.socialLinks?.twitter && (
+                    <Box
+                      sx={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: '50%',
+                        backgroundColor: '#E5E7EB',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                        '&:hover': {
+                          backgroundColor: '#000000',
+                          transform: 'translateY(-2px)',
+                          '& .MuiSvgIcon-root': {
+                            color: '#FFFFFF',
+                          },
+                        },
+                      }}
+                    >
+                      <TwitterIcon sx={{ fontSize: 18, color: '#6B7280', transition: 'color 0.2s' }} />
+                    </Box>
+                  )}
+                  {profile.socialLinks?.github && (
+                    <Box
+                      sx={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: '50%',
+                        backgroundColor: '#E5E7EB',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                        '&:hover': {
+                          backgroundColor: '#181717',
+                          transform: 'translateY(-2px)',
+                          '& .MuiSvgIcon-root': {
+                            color: '#FFFFFF',
+                          },
+                        },
+                      }}
+                    >
+                      <GitHubIcon sx={{ fontSize: 18, color: '#6B7280', transition: 'color 0.2s' }} />
+                    </Box>
+                  )}
+                  {profile.socialLinks?.youtube && (
+                    <Box
+                      sx={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: '50%',
+                        backgroundColor: '#E5E7EB',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                        '&:hover': {
+                          backgroundColor: '#FF0000',
+                          transform: 'translateY(-2px)',
+                          '& .MuiSvgIcon-root': {
+                            color: '#FFFFFF',
+                          },
+                        },
+                      }}
+                    >
+                      <YouTubeIcon sx={{ fontSize: 18, color: '#6B7280', transition: 'color 0.2s' }} />
+                    </Box>
+                  )}
+                </Box>
+              </Box>
+            )}
+
+            {/* Business Hours */}
+            {showBusinessHours && profile.businessHours && profile.businessHours.some((h) => h.isOpen) && (
+              <Box sx={{ mb: 2.5 }}>
+                <Typography
+                  variant="caption"
+                  sx={{
+                    fontWeight: 700,
+                    fontSize: '0.6875rem',
+                    color: '#6B7280',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    mb: 1,
+                    display: 'block',
+                  }}
+                >
+                  Business Hours
+                </Typography>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
+                  {profile.businessHours
+                    ?.filter((h) => h.isOpen)
+                    .map((daySchedule) => (
+                      <Box
+                        key={daySchedule.day}
+                        sx={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          py: 0.5,
+                          px: 1,
+                          borderRadius: '8px',
+                          backgroundColor: '#FFFFFF',
+                        }}
+                      >
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            fontWeight: 600,
+                            fontSize: '0.6875rem',
+                            textTransform: 'capitalize',
+                            color: '#1A1A1A',
+                          }}
+                        >
+                          {daySchedule.day}
+                        </Typography>
+                        <Typography variant="caption" sx={{ fontSize: '0.6875rem', color: '#6B7280' }}>
+                          {daySchedule.openTime} - {daySchedule.closeTime}
+                        </Typography>
+                      </Box>
+                    ))}
+                </Box>
+              </Box>
+            )}
+
+            {/* Save Contact Button */}
+            {showSaveButton && (
+              <Button
+                fullWidth
+                variant="contained"
+                startIcon={<PersonAddIcon />}
                 sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  p: 1.25,
-                  borderRadius: '10px',
-                  backgroundColor: '#FFFFFF',
-                  border: '1px solid #E5E7EB',
-                  fontSize: '0.75rem',
+                  mb: 2.5,
+                  height: 48,
+                  fontSize: '0.9375rem',
+                  fontWeight: 600,
+                  borderRadius: '14px',
+                  textTransform: 'none',
+                  backgroundColor: '#2D6EF5',
+                  boxShadow: '0 4px 12px rgba(45, 110, 245, 0.3)',
+                  '&:hover': {
+                    backgroundColor: '#1E5DD8',
+                    boxShadow: '0 6px 16px rgba(45, 110, 245, 0.4)',
+                  },
                 }}
               >
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <WebsiteIcon sx={{ fontSize: 16, color: '#2D6EF5' }} />
-                  <Typography variant="caption" sx={{ fontWeight: 600, fontSize: '0.75rem' }}>
-                    Visit Website
-                  </Typography>
-                </Box>
-                <Typography variant="caption" sx={{ color: '#9CA3AF', fontSize: '0.75rem' }}>
-                  →
-                </Typography>
-              </Box>
-              <Box
+                Save Contact
+              </Button>
+            )}
+
+            {/* Powered By Footer */}
+            <Box sx={{ textAlign: 'center', pt: 2, pb: 2 }}>
+              <Typography
+                variant="caption"
                 sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  p: 1.25,
-                  borderRadius: '10px',
-                  backgroundColor: '#FFFFFF',
-                  border: '1px solid #E5E7EB',
-                  fontSize: '0.75rem',
+                  fontSize: '0.6875rem',
+                  color: '#9CA3AF',
+                  letterSpacing: '0.05em',
+                  fontWeight: 500,
                 }}
               >
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <FileIcon sx={{ fontSize: 16, color: '#2D6EF5' }} />
-                  <Typography variant="caption" sx={{ fontWeight: 600, fontSize: '0.75rem' }}>
-                    Company Portfolio
-                  </Typography>
-                </Box>
-                <Typography variant="caption" sx={{ color: '#9CA3AF', fontSize: '0.75rem' }}>
-                  →
-                </Typography>
-              </Box>
+                POWERED BY BBTAP
+              </Typography>
             </Box>
           </Box>
         </Box>
@@ -411,8 +830,24 @@ const EditProfileRedesigned: React.FC = () => {
       website: '',
     },
     socialLinks: {
+      linkedin: '',
+      twitter: '',
+      facebook: '',
+      instagram: '',
+      youtube: '',
+      github: '',
+      tiktok: '',
       custom: [],
     },
+    businessHours: [
+      { day: 'monday', isOpen: true, openTime: '09:00', closeTime: '17:00' },
+      { day: 'tuesday', isOpen: true, openTime: '09:00', closeTime: '17:00' },
+      { day: 'wednesday', isOpen: true, openTime: '09:00', closeTime: '17:00' },
+      { day: 'thursday', isOpen: true, openTime: '09:00', closeTime: '17:00' },
+      { day: 'friday', isOpen: true, openTime: '09:00', closeTime: '17:00' },
+      { day: 'saturday', isOpen: false, openTime: '09:00', closeTime: '17:00' },
+      { day: 'sunday', isOpen: false, openTime: '09:00', closeTime: '17:00' },
+    ],
     customization: {
       backgroundImage: '',
     },
@@ -428,6 +863,12 @@ const EditProfileRedesigned: React.FC = () => {
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<string>('');
   const [templates, setTemplates] = useState<Template[]>([]);
+
+  // Toggle controls for card view elements
+  const [showBusinessHours, setShowBusinessHours] = useState(true);
+  const [showLocation, setShowLocation] = useState(true);
+  const [showAddress, setShowAddress] = useState(true);
+  const [showSaveButton, setShowSaveButton] = useState(true);
 
   // Load templates
   useEffect(() => {
@@ -454,7 +895,24 @@ const EditProfileRedesigned: React.FC = () => {
         const response = await profilesAPI.getProfile(id);
 
         if (response.success && response.data) {
-          setProfile(response.data);
+          // Initialize businessHours if not present or empty
+          const defaultBusinessHours = [
+            { day: 'monday', isOpen: true, openTime: '09:00', closeTime: '17:00' },
+            { day: 'tuesday', isOpen: true, openTime: '09:00', closeTime: '17:00' },
+            { day: 'wednesday', isOpen: true, openTime: '09:00', closeTime: '17:00' },
+            { day: 'thursday', isOpen: true, openTime: '09:00', closeTime: '17:00' },
+            { day: 'friday', isOpen: true, openTime: '09:00', closeTime: '17:00' },
+            { day: 'saturday', isOpen: false, openTime: '09:00', closeTime: '17:00' },
+            { day: 'sunday', isOpen: false, openTime: '09:00', closeTime: '17:00' },
+          ];
+
+          const profileData = {
+            ...response.data,
+            businessHours: (response.data.businessHours && response.data.businessHours.length > 0)
+              ? response.data.businessHours
+              : defaultBusinessHours,
+          };
+          setProfile(profileData);
 
           // Set template if exists
           if (response.data.template) {
@@ -548,10 +1006,19 @@ const EditProfileRedesigned: React.FC = () => {
           phone: phoneAction?.label || '',
           email: emailAction?.label || '',
           website: websiteAction?.label || '',
+          address: profile.contactInfo?.address || undefined,
         },
         socialLinks: {
+          linkedin: profile.socialLinks?.linkedin || '',
+          twitter: profile.socialLinks?.twitter || '',
+          facebook: profile.socialLinks?.facebook || '',
+          instagram: profile.socialLinks?.instagram || '',
+          youtube: profile.socialLinks?.youtube || '',
+          github: profile.socialLinks?.github || '',
+          tiktok: profile.socialLinks?.tiktok || '',
           custom: customLinks,
         },
+        businessHours: profile.businessHours || [],
         customization: {
           ...profile.customization,
           backgroundImage: profile.customization?.backgroundImage || '',
@@ -1079,6 +1546,151 @@ const EditProfileRedesigned: React.FC = () => {
               </DndContext>
             </Paper>
 
+            {/* Address Information Section */}
+            <Paper elevation={0} sx={{ p: 3, mb: 3, borderRadius: '16px' }}>
+              <Box sx={{ mb: 3 }}>
+                <Typography variant="h6" sx={{ fontWeight: 600, mb: 0.5 }}>
+                  Office Address
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Add your business location to display on the location map.
+                </Typography>
+              </Box>
+
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+                <TextField
+                  fullWidth
+                  label="Street Address"
+                  placeholder="123 Main Street"
+                  value={profile.contactInfo?.address?.street || ''}
+                  onChange={(e) =>
+                    setProfile({
+                      ...profile,
+                      contactInfo: {
+                        ...profile.contactInfo,
+                        address: {
+                          ...profile.contactInfo?.address,
+                          street: e.target.value,
+                        },
+                      },
+                    })
+                  }
+                  variant="outlined"
+                />
+
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '2fr 1fr' }, gap: 2 }}>
+                  <TextField
+                    fullWidth
+                    label="City"
+                    placeholder="New York"
+                    value={profile.contactInfo?.address?.city || ''}
+                    onChange={(e) =>
+                      setProfile({
+                        ...profile,
+                        contactInfo: {
+                          ...profile.contactInfo,
+                          address: {
+                            ...profile.contactInfo?.address,
+                            city: e.target.value,
+                          },
+                        },
+                      })
+                    }
+                    variant="outlined"
+                  />
+
+                  <TextField
+                    fullWidth
+                    label="State/Province"
+                    placeholder="NY"
+                    value={profile.contactInfo?.address?.state || ''}
+                    onChange={(e) =>
+                      setProfile({
+                        ...profile,
+                        contactInfo: {
+                          ...profile.contactInfo,
+                          address: {
+                            ...profile.contactInfo?.address,
+                            state: e.target.value,
+                          },
+                        },
+                      })
+                    }
+                    variant="outlined"
+                  />
+                </Box>
+
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
+                  <TextField
+                    fullWidth
+                    label="Postal Code"
+                    placeholder="10001"
+                    value={profile.contactInfo?.address?.postalCode || ''}
+                    onChange={(e) =>
+                      setProfile({
+                        ...profile,
+                        contactInfo: {
+                          ...profile.contactInfo,
+                          address: {
+                            ...profile.contactInfo?.address,
+                            postalCode: e.target.value,
+                          },
+                        },
+                      })
+                    }
+                    variant="outlined"
+                  />
+
+                  <TextField
+                    fullWidth
+                    label="Country"
+                    placeholder="United States"
+                    value={profile.contactInfo?.address?.country || ''}
+                    onChange={(e) =>
+                      setProfile({
+                        ...profile,
+                        contactInfo: {
+                          ...profile.contactInfo,
+                          address: {
+                            ...profile.contactInfo?.address,
+                            country: e.target.value,
+                          },
+                        },
+                      })
+                    }
+                    variant="outlined"
+                  />
+                </Box>
+              </Box>
+
+              {/* Google Maps Interactive Picker */}
+              <Box sx={{ mt: 3 }}>
+                <Typography variant="body2" sx={{ mb: 1.5, fontWeight: 600, color: '#374151' }}>
+                  Map Location
+                </Typography>
+                <Typography variant="caption" sx={{ mb: 2, display: 'block', color: '#6B7280' }}>
+                  The pin will automatically appear based on your address. You can click or drag it to adjust the exact location.
+                </Typography>
+                <GoogleMapsPicker
+                  address={profile.contactInfo?.address}
+                  editable={true}
+                  onLocationChange={(location) => {
+                    setProfile({
+                      ...profile,
+                      contactInfo: {
+                        ...profile.contactInfo,
+                        address: {
+                          ...profile.contactInfo?.address,
+                          latitude: location.latitude,
+                          longitude: location.longitude,
+                        },
+                      },
+                    });
+                  }}
+                />
+              </Box>
+            </Paper>
+
             {/* Custom Links & Files Section */}
             <Paper elevation={0} sx={{ p: 3, mb: 3, borderRadius: '16px' }}>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
@@ -1225,6 +1837,388 @@ const EditProfileRedesigned: React.FC = () => {
                 Add New Link or File
               </Button>
             </Paper>
+
+            {/* Social Media Links Section */}
+            <Paper elevation={0} sx={{ p: 3, mb: 3, borderRadius: '16px' }}>
+              <Box sx={{ mb: 3 }}>
+                <Typography variant="h6" sx={{ fontWeight: 600, mb: 0.5 }}>
+                  Social Media Links
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Connect your social media profiles to your card.
+                </Typography>
+              </Box>
+
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+                {/* LinkedIn */}
+                <TextField
+                  fullWidth
+                  label="LinkedIn"
+                  value={profile.socialLinks?.linkedin || ''}
+                  onChange={(e) => setProfile({ ...profile, socialLinks: { ...profile.socialLinks, linkedin: e.target.value } })}
+                  placeholder="https://linkedin.com/in/yourprofile"
+                  variant="outlined"
+                  InputProps={{
+                    startAdornment: (
+                      <Box
+                        sx={{
+                          width: 40,
+                          height: 40,
+                          borderRadius: '10px',
+                          backgroundColor: '#0A66C2',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: '#FFFFFF',
+                          mr: 1.5,
+                        }}
+                      >
+                        <LinkedInIcon fontSize="small" />
+                      </Box>
+                    ),
+                  }}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: '12px',
+                    },
+                  }}
+                />
+
+                {/* Twitter */}
+                <TextField
+                  fullWidth
+                  label="Twitter"
+                  value={profile.socialLinks?.twitter || ''}
+                  onChange={(e) => setProfile({ ...profile, socialLinks: { ...profile.socialLinks, twitter: e.target.value } })}
+                  placeholder="https://twitter.com/yourhandle"
+                  variant="outlined"
+                  InputProps={{
+                    startAdornment: (
+                      <Box
+                        sx={{
+                          width: 40,
+                          height: 40,
+                          borderRadius: '10px',
+                          backgroundColor: '#000000',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: '#FFFFFF',
+                          mr: 1.5,
+                        }}
+                      >
+                        <TwitterIcon fontSize="small" />
+                      </Box>
+                    ),
+                  }}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: '12px',
+                    },
+                  }}
+                />
+
+                {/* Facebook */}
+                <TextField
+                  fullWidth
+                  label="Facebook"
+                  value={profile.socialLinks?.facebook || ''}
+                  onChange={(e) => setProfile({ ...profile, socialLinks: { ...profile.socialLinks, facebook: e.target.value } })}
+                  placeholder="https://facebook.com/yourpage"
+                  variant="outlined"
+                  InputProps={{
+                    startAdornment: (
+                      <Box
+                        sx={{
+                          width: 40,
+                          height: 40,
+                          borderRadius: '10px',
+                          backgroundColor: '#1877F2',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: '#FFFFFF',
+                          mr: 1.5,
+                        }}
+                      >
+                        <FacebookIcon fontSize="small" />
+                      </Box>
+                    ),
+                  }}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: '12px',
+                    },
+                  }}
+                />
+
+                {/* Instagram */}
+                <TextField
+                  fullWidth
+                  label="Instagram"
+                  value={profile.socialLinks?.instagram || ''}
+                  onChange={(e) => setProfile({ ...profile, socialLinks: { ...profile.socialLinks, instagram: e.target.value } })}
+                  placeholder="https://instagram.com/yourhandle"
+                  variant="outlined"
+                  InputProps={{
+                    startAdornment: (
+                      <Box
+                        sx={{
+                          width: 40,
+                          height: 40,
+                          borderRadius: '10px',
+                          background: 'linear-gradient(45deg, #F58529, #DD2A7B, #8134AF)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: '#FFFFFF',
+                          mr: 1.5,
+                        }}
+                      >
+                        <InstagramIcon fontSize="small" />
+                      </Box>
+                    ),
+                  }}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: '12px',
+                    },
+                  }}
+                />
+
+                {/* YouTube */}
+                <TextField
+                  fullWidth
+                  label="YouTube"
+                  value={profile.socialLinks?.youtube || ''}
+                  onChange={(e) => setProfile({ ...profile, socialLinks: { ...profile.socialLinks, youtube: e.target.value } })}
+                  placeholder="https://youtube.com/@yourchannel"
+                  variant="outlined"
+                  InputProps={{
+                    startAdornment: (
+                      <Box
+                        sx={{
+                          width: 40,
+                          height: 40,
+                          borderRadius: '10px',
+                          backgroundColor: '#FF0000',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: '#FFFFFF',
+                          mr: 1.5,
+                        }}
+                      >
+                        <YouTubeIcon fontSize="small" />
+                      </Box>
+                    ),
+                  }}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: '12px',
+                    },
+                  }}
+                />
+
+                {/* GitHub */}
+                <TextField
+                  fullWidth
+                  label="GitHub"
+                  value={profile.socialLinks?.github || ''}
+                  onChange={(e) => setProfile({ ...profile, socialLinks: { ...profile.socialLinks, github: e.target.value } })}
+                  placeholder="https://github.com/yourusername"
+                  variant="outlined"
+                  InputProps={{
+                    startAdornment: (
+                      <Box
+                        sx={{
+                          width: 40,
+                          height: 40,
+                          borderRadius: '10px',
+                          backgroundColor: '#181717',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: '#FFFFFF',
+                          mr: 1.5,
+                        }}
+                      >
+                        <GitHubIcon fontSize="small" />
+                      </Box>
+                    ),
+                  }}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: '12px',
+                    },
+                  }}
+                />
+              </Box>
+            </Paper>
+
+            {/* Card View Display Options */}
+            <Paper elevation={0} sx={{ p: 3, mb: 3, borderRadius: '16px' }}>
+              <Box sx={{ mb: 3 }}>
+                <Typography variant="h6" sx={{ fontWeight: 600, mb: 0.5 }}>
+                  Card View Options
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Control which elements appear on your business card.
+                </Typography>
+              </Box>
+
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <FormControlLabel
+                  control={<Switch checked={showSaveButton} onChange={(e) => setShowSaveButton(e.target.checked)} color="primary" />}
+                  label={
+                    <Box>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                        Save Contact Button
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Allow visitors to save your contact information
+                      </Typography>
+                    </Box>
+                  }
+                />
+                <FormControlLabel
+                  control={<Switch checked={showAddress} onChange={(e) => setShowAddress(e.target.checked)} color="primary" />}
+                  label={
+                    <Box>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                        Address
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Show your office address details
+                      </Typography>
+                    </Box>
+                  }
+                />
+                <FormControlLabel
+                  control={<Switch checked={showLocation} onChange={(e) => setShowLocation(e.target.checked)} color="primary" />}
+                  label={
+                    <Box>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                        Location Map
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Display your office location on the card
+                      </Typography>
+                    </Box>
+                  }
+                />
+                <FormControlLabel
+                  control={<Switch checked={showBusinessHours} onChange={(e) => setShowBusinessHours(e.target.checked)} color="primary" />}
+                  label={
+                    <Box>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                        Business Hours
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Show your availability schedule
+                      </Typography>
+                    </Box>
+                  }
+                />
+              </Box>
+            </Paper>
+
+            {/* Business Hours Section */}
+            <Paper elevation={0} sx={{ p: 3, mb: 3, borderRadius: '16px' }}>
+              <Box sx={{ mb: 3 }}>
+                <Typography variant="h6" sx={{ fontWeight: 600, mb: 0.5 }}>
+                  Business Hours
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Set your availability for each day of the week.
+                </Typography>
+              </Box>
+
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {profile.businessHours && Array.isArray(profile.businessHours) && profile.businessHours.length > 0 ? (
+                  profile.businessHours.map((daySchedule, index) => (
+                    <Box
+                      key={daySchedule.day}
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 2,
+                        p: 2,
+                        borderRadius: '12px',
+                        backgroundColor: daySchedule.isOpen ? '#F9FAFB' : '#FAFAFA',
+                        border: '1px solid #E5E7EB',
+                      }}
+                    >
+                    <Box sx={{ flex: '0 0 120px' }}>
+                      <Typography variant="body2" sx={{ fontWeight: 600, textTransform: 'capitalize' }}>
+                        {daySchedule.day}
+                      </Typography>
+                    </Box>
+
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={daySchedule.isOpen}
+                          onChange={(e) => {
+                            const updatedHours = [...(profile.businessHours || [])];
+                            updatedHours[index] = { ...updatedHours[index], isOpen: e.target.checked };
+                            setProfile((prev) => ({ ...prev, businessHours: updatedHours }));
+                          }}
+                          size="small"
+                        />
+                      }
+                      label={daySchedule.isOpen ? 'Open' : 'Closed'}
+                      sx={{ mr: 2 }}
+                    />
+
+                    {daySchedule.isOpen && (
+                      <>
+                        <TextField
+                          type="time"
+                          value={daySchedule.openTime || '09:00'}
+                          onChange={(e) => {
+                            const updatedHours = [...(profile.businessHours || [])];
+                            updatedHours[index] = { ...updatedHours[index], openTime: e.target.value };
+                            setProfile((prev) => ({ ...prev, businessHours: updatedHours }));
+                          }}
+                          size="small"
+                          sx={{
+                            flex: 1,
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: '8px',
+                            },
+                          }}
+                        />
+                        <Typography variant="body2" color="text.secondary">
+                          to
+                        </Typography>
+                        <TextField
+                          type="time"
+                          value={daySchedule.closeTime || '17:00'}
+                          onChange={(e) => {
+                            const updatedHours = [...(profile.businessHours || [])];
+                            updatedHours[index] = { ...updatedHours[index], closeTime: e.target.value };
+                            setProfile((prev) => ({ ...prev, businessHours: updatedHours }));
+                          }}
+                          size="small"
+                          sx={{
+                            flex: 1,
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: '8px',
+                            },
+                          }}
+                        />
+                      </>
+                    )}
+                  </Box>
+                  ))
+                ) : (
+                  <Typography variant="body2" color="text.secondary">
+                    No business hours set. Please save the profile to initialize business hours.
+                  </Typography>
+                )}
+              </Box>
+            </Paper>
           </Box>
 
           {/* Right Column - Live Preview */}
@@ -1294,7 +2288,13 @@ const EditProfileRedesigned: React.FC = () => {
                   </Tooltip>
                 </Box>
               </Box>
-              <MobilePreview profile={profile} orientation={previewOrientation} />
+              <MobilePreview
+                profile={profile}
+                orientation={previewOrientation}
+                showSaveButton={showSaveButton}
+                showLocation={showLocation}
+                showBusinessHours={showBusinessHours}
+              />
             </Box>
           </Box>
         </Box>
