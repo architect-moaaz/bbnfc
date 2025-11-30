@@ -20,6 +20,10 @@ import {
   WhatsApp as WhatsAppIcon,
   Language as WebsiteIcon,
   Description as FileIcon,
+  LinkedIn,
+  Twitter,
+  Instagram,
+  GitHub,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { profilesAPI } from '../services/api';
