@@ -32,9 +32,12 @@ const GoogleMapsPicker: React.FC<GoogleMapsPickerProps> = ({
   const [mapCenter, setMapCenter] = useState<google.maps.LatLngLiteral>({ lat: 40.7128, lng: -74.0060 }); // Default: New York
   const [isGeocoding, setIsGeocoding] = useState(false);
 
+  const apiKey = process.env.REACT_APP_GOOGLE_MAPS_API_KEY || '';
+  const hasValidApiKey = apiKey && apiKey !== 'YOUR_GOOGLE_MAPS_API_KEY';
+
   const { isLoaded, loadError } = useJsApiLoader({
     id: 'google-map-script',
-    googleMapsApiKey: process.env.REACT_APP_GOOGLE_MAPS_API_KEY || '',
+    googleMapsApiKey: hasValidApiKey ? apiKey : 'AIzaSyDummyKeyForFallback',
   });
 
   // Geocode address to get coordinates
@@ -156,7 +159,7 @@ const GoogleMapsPicker: React.FC<GoogleMapsPickerProps> = ({
     );
   }
 
-  if (!process.env.REACT_APP_GOOGLE_MAPS_API_KEY || process.env.REACT_APP_GOOGLE_MAPS_API_KEY === 'YOUR_GOOGLE_MAPS_API_KEY') {
+  if (!hasValidApiKey) {
     return (
       <Box
         sx={{
