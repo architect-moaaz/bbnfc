@@ -2,32 +2,30 @@ const nodemailer = require('nodemailer');
 
 // Create transporter
 const createTransporter = () => {
-  // For development, use a test account or configure with real SMTP
-  // For production, use environment variables
+  // Use Gmail SMTP for both development and production
+  // Configure with environment variables from .env
 
-  if (process.env.NODE_ENV === 'production') {
-    // Production SMTP configuration
-    return nodemailer.createTransporter({
-      host: process.env.SMTP_HOST,
-      port: process.env.SMTP_PORT || 587,
-      secure: process.env.SMTP_SECURE === 'true', // true for 465, false for other ports
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-      },
-    });
-  } else {
-    // Development: Log to console
-    return nodemailer.createTransporter({
-      host: 'smtp.ethereal.email',
-      port: 587,
-      secure: false,
-      auth: {
-        user: process.env.SMTP_USER || 'ethereal.user@ethereal.email',
-        pass: process.env.SMTP_PASS || 'ethereal.password',
-      },
-    });
+  const emailConfig = {
+    host: process.env.EMAIL_HOST || 'smtp.gmail.com',
+    port: parseInt(process.env.EMAIL_PORT) || 587,
+    secure: false, // false for 587, true for 465
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS,
+    },
+    tls: {
+      // Do not fail on invalid certs (for development)
+      rejectUnauthorized: false
+    }
+  };
+
+  // Validate configuration
+  if (!emailConfig.auth.user || !emailConfig.auth.pass) {
+    console.warn('⚠️ Email credentials not configured. Please set EMAIL_USER and EMAIL_PASS in .env file.');
+    console.warn('Email sending will fail until configured.');
   }
+
+  return nodemailer.createTransporter(emailConfig);
 };
 
 /**
@@ -234,8 +232,9 @@ ${process.env.FRONTEND_URL}
     `;
 
     const mailOptions = {
-      from: `"BBTap" <${process.env.SMTP_FROM || 'noreply@bbtap.me'}>`,
+      from: `"BBTap Support" <${process.env.EMAIL_FROM || 'support@bahbeta.com'}>`,
       to: recipientEmail,
+      replyTo: 'support@bahbeta.com',
       subject: `Invitation to join ${organizationName} on BBTap`,
       text: emailText,
       html: emailHtml,
@@ -373,8 +372,9 @@ const sendWelcomeEmail = async ({
     `;
 
     const mailOptions = {
-      from: `"BBTap" <${process.env.SMTP_FROM || 'noreply@bbtap.me'}>`,
+      from: `"BBTap Support" <${process.env.EMAIL_FROM || 'support@bahbeta.com'}>`,
       to: recipientEmail,
+      replyTo: 'support@bahbeta.com',
       subject: `Welcome to ${organizationName}!`,
       html: emailHtml,
     };
@@ -449,8 +449,9 @@ const sendInvitationReminderEmail = async ({
     `;
 
     const mailOptions = {
-      from: `"BBTap" <${process.env.SMTP_FROM || 'noreply@bbtap.me'}>`,
+      from: `"BBTap Support" <${process.env.EMAIL_FROM || 'support@bahbeta.com'}>`,
       to: recipientEmail,
+      replyTo: 'support@bahbeta.com',
       subject: `Reminder: Invitation to ${organizationName} expiring soon`,
       html: emailHtml,
     };
