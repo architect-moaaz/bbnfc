@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { protect } = require('../middleware/auth');
-const { upload, convertToBase64 } = require('../middleware/upload');
+const { upload, uploadFile, convertToBase64 } = require('../middleware/upload');
 
 // Upload profile photo
 router.post('/profile-photo', protect, upload.single('photo'), convertToBase64, async (req, res) => {
@@ -58,7 +58,7 @@ router.post('/company-logo', protect, upload.single('logo'), convertToBase64, as
 });
 
 // Upload file (PDF, documents, etc.)
-router.post('/file', protect, upload.single('file'), convertToBase64, async (req, res) => {
+router.post('/file', protect, uploadFile.single('file'), convertToBase64, async (req, res) => {
   try {
     if (!req.fileBase64) {
       return res.status(400).json({
