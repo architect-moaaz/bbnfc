@@ -43,6 +43,7 @@ import QRCodeCard from '../components/QRCodeCard';
 import LocationMap from '../components/LocationMap';
 import ActionButton from '../components/ui/ActionButton';
 import ContactActionIcon from '../components/ui/ContactActionIcon';
+import TemplateRenderer from '../components/TemplateRenderer';
 
 const PublicProfileRedesigned: React.FC = () => {
   const { profileId } = useParams();
@@ -217,15 +218,14 @@ const PublicProfileRedesigned: React.FC = () => {
   const portfolioLink = customLinks.find(link => link.platform?.toLowerCase().includes('portfolio'));
 
   return (
-    <Box
-      sx={{
-        minHeight: '100vh',
-        background: '#F9FAFB',
-        py: { xs: 2, md: 4 },
-        px: { xs: 0, sm: 2 },
-      }}
-    >
-      <Container maxWidth="sm" sx={{ px: { xs: 0, sm: 2 } }}>
+    <TemplateRenderer profile={profile}>
+      <Box
+        sx={{
+          minHeight: '100vh',
+          py: { xs: 2, md: 4 },
+          px: { xs: 0, sm: 2 },
+        }}
+      >
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
@@ -922,18 +922,18 @@ const PublicProfileRedesigned: React.FC = () => {
                   </Box>
                 </Box>
               </Box>
-            </motion.div>
-      </Container>
+          </motion.div>
 
-      {/* Save Contact Modal */}
-      <SaveContactModal
-        open={saveModalOpen}
-        onClose={() => setSaveModalOpen(false)}
-        profile={profile}
-        profileId={profileId || ''}
-      />
-    </Box>
-  );
-};
+          {/* Save Contact Modal */}
+          <SaveContactModal
+            open={saveModalOpen}
+            onClose={() => setSaveModalOpen(false)}
+            profile={profile}
+            profileId={profileId || ''}
+          />
+        </Box>
+      </TemplateRenderer>
+    );
+  };
 
 export default PublicProfileRedesigned;

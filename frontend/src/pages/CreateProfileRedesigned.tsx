@@ -48,6 +48,7 @@ import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, v
 import { CSS } from '@dnd-kit/utilities';
 import GoogleMapsPicker from '../components/GoogleMapsPicker';
 import ImageCropperModal from '../components/ImageCropperModal';
+import TemplateSelector from '../components/TemplateSelector';
 
 // Sortable Contact Action Item
 interface SortableItemProps {
@@ -1445,28 +1446,15 @@ const CreateProfileRedesigned: React.FC = () => {
 
               <Divider sx={{ my: 3 }} />
 
-              <Box sx={{ mb: 2 }}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
-                  Template
-                </Typography>
-                <TextField
-                  select
-                  fullWidth
-                  value={selectedTemplate}
-                  onChange={(e) => setSelectedTemplate(e.target.value)}
-                  helperText="Choose a template for your profile design"
-                  size="small"
-                >
-                  <MenuItem value="">
-                    <em>Default Template</em>
-                  </MenuItem>
-                  {templates.map((template) => (
-                    <MenuItem key={template._id} value={template._id}>
-                      {template.name} {template.isPremium && '⭐'}
-                    </MenuItem>
-                  ))}
-                </TextField>
-              </Box>
+            </Paper>
+
+            {/* Template Selection Section */}
+            <Paper elevation={0} sx={{ p: 3, mb: 3, borderRadius: '16px' }}>
+              <TemplateSelector
+                templates={templates}
+                selectedTemplateId={selectedTemplate}
+                onSelect={setSelectedTemplate}
+              />
             </Paper>
 
             {/* Contact Actions Section */}
