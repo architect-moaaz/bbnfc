@@ -55,11 +55,12 @@ interface SortableItemProps {
   icon: React.ReactNode;
   label: string;
   type: string;
+  isPrimary?: boolean;
   onDelete: () => void;
   onLabelChange: (newLabel: string) => void;
 }
 
-const SortableItem: React.FC<SortableItemProps> = ({ id, icon, label, type, onDelete, onLabelChange }) => {
+const SortableItem: React.FC<SortableItemProps> = ({ id, icon, label, type, isPrimary = false, onDelete, onLabelChange }) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
 
   const style = {
@@ -109,9 +110,11 @@ const SortableItem: React.FC<SortableItemProps> = ({ id, icon, label, type, onDe
           {type}
         </Typography>
       </Box>
-      <IconButton onClick={onDelete} size="small" sx={{ color: '#9CA3AF' }}>
-        <DeleteIcon fontSize="small" />
-      </IconButton>
+      {!isPrimary && (
+        <IconButton onClick={onDelete} size="small" sx={{ color: '#9CA3AF' }}>
+          <DeleteIcon fontSize="small" />
+        </IconButton>
+      )}
     </Box>
   );
 };
@@ -858,8 +861,9 @@ const EditProfileRedesigned: React.FC = () => {
   });
 
   const [contactActions, setContactActions] = useState([
-    { id: '1', icon: <PhoneIcon />, label: '', type: 'Mobile Call' },
-    { id: '2', icon: <EmailIcon />, label: '', type: 'Primary Email' },
+    { id: 'phone', icon: <PhoneIcon />, label: '', type: 'Mobile Call', isPrimary: true },
+    { id: 'email', icon: <EmailIcon />, label: '', type: 'Primary Email', isPrimary: true },
+    { id: 'website', icon: <WebsiteIcon />, label: '', type: 'Website', isPrimary: true },
   ]);
 
   const [customLinks, setCustomLinks] = useState<any[]>([]);
@@ -924,32 +928,31 @@ const EditProfileRedesigned: React.FC = () => {
           }
 
           // Set up contact actions from profile data
-          const actions = [];
-          if (response.data.contactInfo?.phone) {
-            actions.push({
-              id: '1',
+          // Always include phone, email, and website as primary fields (even if empty)
+          const actions = [
+            {
+              id: 'phone',
               icon: <PhoneIcon />,
-              label: response.data.contactInfo.phone,
-              type: 'Mobile Call'
-            });
-          }
-          if (response.data.contactInfo?.email) {
-            actions.push({
-              id: '2',
+              label: response.data.contactInfo?.phone || '',
+              type: 'Mobile Call',
+              isPrimary: true
+            },
+            {
+              id: 'email',
               icon: <EmailIcon />,
-              label: response.data.contactInfo.email,
-              type: 'Primary Email'
-            });
-          }
-          if (response.data.contactInfo?.website) {
-            actions.push({
-              id: '3',
+              label: response.data.contactInfo?.email || '',
+              type: 'Primary Email',
+              isPrimary: true
+            },
+            {
+              id: 'website',
               icon: <WebsiteIcon />,
-              label: response.data.contactInfo.website,
-              type: 'Website'
-            });
-          }
-          setContactActions(actions.length > 0 ? actions : contactActions);
+              label: response.data.contactInfo?.website || '',
+              type: 'Website',
+              isPrimary: true
+            }
+          ];
+          setContactActions(actions);
 
           // Set up custom links
           if (response.data.socialLinks?.custom) {
@@ -1567,6 +1570,7 @@ const EditProfileRedesigned: React.FC = () => {
                       icon={action.icon}
                       label={action.label}
                       type={action.type}
+                      isPrimary={action.isPrimary}
                       onDelete={() => setContactActions(contactActions.filter((a) => a.id !== action.id))}
                       onLabelChange={(newLabel) => {
                         setContactActions(

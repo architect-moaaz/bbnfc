@@ -55,11 +55,12 @@ interface SortableItemProps {
   icon: React.ReactNode;
   label: string;
   type: string;
+  isPrimary?: boolean;
   onDelete: () => void;
   onLabelChange: (newLabel: string) => void;
 }
 
-const SortableItem: React.FC<SortableItemProps> = ({ id, icon, label, type, onDelete, onLabelChange }) => {
+const SortableItem: React.FC<SortableItemProps> = ({ id, icon, label, type, isPrimary = false, onDelete, onLabelChange }) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
 
   const style = {
@@ -109,9 +110,11 @@ const SortableItem: React.FC<SortableItemProps> = ({ id, icon, label, type, onDe
           {type}
         </Typography>
       </Box>
-      <IconButton onClick={onDelete} size="small" sx={{ color: '#9CA3AF' }}>
-        <DeleteIcon fontSize="small" />
-      </IconButton>
+      {!isPrimary && (
+        <IconButton onClick={onDelete} size="small" sx={{ color: '#9CA3AF' }}>
+          <DeleteIcon fontSize="small" />
+        </IconButton>
+      )}
     </Box>
   );
 };
@@ -861,8 +864,9 @@ const CreateProfileRedesigned: React.FC = () => {
   });
 
   const [contactActions, setContactActions] = useState([
-    { id: '1', icon: <PhoneIcon />, label: '', type: 'Mobile Call' },
-    { id: '2', icon: <EmailIcon />, label: '', type: 'Primary Email' },
+    { id: 'phone', icon: <PhoneIcon />, label: '', type: 'Mobile Call', isPrimary: true },
+    { id: 'email', icon: <EmailIcon />, label: '', type: 'Primary Email', isPrimary: true },
+    { id: 'website', icon: <WebsiteIcon />, label: '', type: 'Website', isPrimary: true },
   ]);
 
   const [customLinks, setCustomLinks] = useState<any[]>([]);
@@ -1490,6 +1494,7 @@ const CreateProfileRedesigned: React.FC = () => {
                       icon={action.icon}
                       label={action.label || 'Add contact info'}
                       type={action.type}
+                      isPrimary={action.isPrimary}
                       onDelete={() => setContactActions(contactActions.filter((a) => a.id !== action.id))}
                       onLabelChange={(newLabel) => {
                         setContactActions(
