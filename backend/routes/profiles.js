@@ -3,12 +3,23 @@ const router = express.Router();
 const { body, validationResult } = require('express-validator');
 const QRCode = require('qrcode');
 const { protect } = require('../middleware/auth');
+const { detectTenant } = require('../middleware/tenant');
+const { checkProfileLimit, incrementProfileUsage, decrementProfileUsage } = require('../middleware/subscription');
 const { profileOperations, templateOperations } = require('../utils/dbOperations');
 
 // Get all user profiles
-router.get('/', protect, async (req, res) => {
+router.get('/', protect, detectTenant, async (req, res) => {
   try {
-    const profiles = await profileOperations.findByUserId(req.user._id);
+    // If user is in an organization and org_admin/admin, show all org profiles
+    // Otherwise show only user's own profiles
+    let profiles;
+    if (req.user.organization && (req.user.role === 'org_admin' || req.user.role === 'admin' || req.user.role === 'super_admin')) {
+      // Get all profiles in the organization
+      profiles = await profileOperations.findByOrganization(req.user.organization);
+    } else {
+      // Get only user's own profiles
+      profiles = await profileOperations.findByUserId(req.user._id);
+    }
     
     // Populate template data for each profile
     const profilesWithTemplates = await Promise.all(
@@ -76,7 +87,7 @@ router.get('/:id', protect, async (req, res) => {
 });
 
 // Create new profile
-router.post('/', protect, async (req, res) => {
+router.post('/', protect, checkProfileLimit, async (req, res) => {
   try {
     const {
       personalInfo,
@@ -87,17 +98,6 @@ router.post('/', protect, async (req, res) => {
       customization,
       sections
     } = req.body;
-    
-    // Check if user can create more profiles (simplified for now)
-    const user = req.user;
-    // TODO: Implement subscription check later
-    // const userWithSubscription = await user.populate('subscription');
-    // if (!userWithSubscription.subscription.canCreateProfile()) {
-    //   return res.status(403).json({
-    //     success: false,
-    //     error: 'Profile limit reached for your subscription plan'
-    //   });
-    // }
     
     // Verify template exists if provided, otherwise use default
     let templateId = template;
@@ -138,6 +138,7 @@ router.post('/', protect, async (req, res) => {
     
     const profile = await profileOperations.create({
       user: req.user._id,
+      organization: req.user.organization || null,
       slug,
       personalInfo,
       contactInfo,
@@ -159,18 +160,18 @@ router.post('/', protect, async (req, res) => {
       profile.qrCode = qrCodeDataUrl;
     }
     
-    // Update subscription usage (simplified for now)
-    // TODO: Implement subscription usage tracking later
-    // user.subscription.usage.profilesCreated += 1;
-    // await user.subscription.save();
-    
+    // Increment organization usage if applicable
+    if (req.organization) {
+      await req.organization.incrementUsage('profiles', 1);
+    }
+
     // Populate template data
     let profileWithTemplate = profile;
     if (profile.template) {
       const template = await templateOperations.findById(profile.template);
       profileWithTemplate = { ...profile, template };
     }
-    
+
     res.status(201).json({
       success: true,
       data: profileWithTemplate

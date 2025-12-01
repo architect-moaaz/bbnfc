@@ -47,6 +47,7 @@ import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, us
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import GoogleMapsPicker from '../components/GoogleMapsPicker';
+import ImageCropperModal from '../components/ImageCropperModal';
 
 // Sortable Contact Action Item
 interface SortableItemProps {
@@ -808,6 +809,9 @@ const CreateProfileRedesigned: React.FC = () => {
   const [previewOrientation, setPreviewOrientation] = useState<'portrait' | 'landscape'>('portrait');
   const coverImageInputRef = React.useRef<HTMLInputElement>(null);
   const profilePhotoInputRef = React.useRef<HTMLInputElement>(null);
+  const [cropperOpen, setCropperOpen] = useState(false);
+  const [cropperImage, setCropperImage] = useState('');
+  const [cropperType, setCropperType] = useState<'profile' | 'cover'>('profile');
 
   const [profile, setProfile] = useState<Partial<Profile>>({
     personalInfo: {
@@ -1045,9 +1049,9 @@ const CreateProfileRedesigned: React.FC = () => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    // Validate file size (2MB max for MongoDB storage)
-    if (file.size > 2 * 1024 * 1024) {
-      alert('File size must be less than 2MB');
+    // Validate file size (5MB max before cropping)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('File size must be less than 5MB');
       return;
     }
 
@@ -1058,30 +1062,14 @@ const CreateProfileRedesigned: React.FC = () => {
       return;
     }
 
-    setUploadingCover(true);
-
-    try {
-      const response = await uploadAPI.uploadCompanyLogo(file);
-
-      if (response.success && response.data) {
-        const imageUrl = response.data.imageUrl;
-        setProfile({
-          ...profile,
-          customization: {
-            ...profile.customization,
-            backgroundImage: imageUrl,
-          },
-        });
-        alert('Cover image uploaded successfully!');
-      } else {
-        alert('Failed to upload cover image');
-      }
-    } catch (err) {
-      console.error('Upload error:', err);
-      alert('Failed to upload cover image. Please try again.');
-    } finally {
-      setUploadingCover(false);
-    }
+    // Read file as data URL for cropper
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setCropperImage(reader.result as string);
+      setCropperType('cover');
+      setCropperOpen(true);
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleCoverImageClick = () => {
@@ -1102,9 +1090,9 @@ const CreateProfileRedesigned: React.FC = () => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    // Validate file size (2MB max for MongoDB storage)
-    if (file.size > 2 * 1024 * 1024) {
-      alert('File size must be less than 2MB');
+    // Validate file size (5MB max before cropping)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('File size must be less than 5MB');
       return;
     }
 
@@ -1115,34 +1103,81 @@ const CreateProfileRedesigned: React.FC = () => {
       return;
     }
 
-    setUploadingPhoto(true);
-
-    try {
-      const response = await uploadAPI.uploadProfilePhoto(file);
-
-      if (response.success && response.data) {
-        const imageUrl = response.data.imageUrl;
-        setProfile({
-          ...profile,
-          personalInfo: {
-            ...profile.personalInfo,
-            profilePhoto: imageUrl,
-          },
-        });
-        alert('Profile photo uploaded successfully!');
-      } else {
-        alert('Failed to upload profile photo');
-      }
-    } catch (err) {
-      console.error('Upload error:', err);
-      alert('Failed to upload profile photo. Please try again.');
-    } finally {
-      setUploadingPhoto(false);
-    }
+    // Read file as data URL for cropper
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setCropperImage(reader.result as string);
+      setCropperType('profile');
+      setCropperOpen(true);
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleProfilePhotoClick = () => {
     profilePhotoInputRef.current?.click();
+  };
+
+  const handleCropComplete = async (croppedImage: string) => {
+    // Convert base64 to file
+    const response = await fetch(croppedImage);
+    const blob = await response.blob();
+    const file = new File([blob], 'cropped-image.jpg', { type: 'image/jpeg' });
+
+    // Validate file size after cropping (2MB max for MongoDB storage)
+    if (file.size > 2 * 1024 * 1024) {
+      alert('Cropped image is too large. Please try cropping a smaller area or use a smaller original image.');
+      return;
+    }
+
+    if (cropperType === 'profile') {
+      setUploadingPhoto(true);
+      try {
+        const uploadResponse = await uploadAPI.uploadProfilePhoto(file);
+
+        if (uploadResponse.success && uploadResponse.data) {
+          const imageUrl = uploadResponse.data.imageUrl;
+          setProfile({
+            ...profile,
+            personalInfo: {
+              ...profile.personalInfo,
+              profilePhoto: imageUrl,
+            },
+          });
+          alert('Profile photo uploaded successfully!');
+        } else {
+          alert('Failed to upload profile photo');
+        }
+      } catch (err) {
+        console.error('Upload error:', err);
+        alert('Failed to upload profile photo. Please try again.');
+      } finally {
+        setUploadingPhoto(false);
+      }
+    } else {
+      setUploadingCover(true);
+      try {
+        const uploadResponse = await uploadAPI.uploadCompanyLogo(file);
+
+        if (uploadResponse.success && uploadResponse.data) {
+          const imageUrl = uploadResponse.data.imageUrl;
+          setProfile({
+            ...profile,
+            customization: {
+              ...profile.customization,
+              backgroundImage: imageUrl,
+            },
+          });
+          alert('Cover image uploaded successfully!');
+        } else {
+          alert('Failed to upload cover image');
+        }
+      } catch (err) {
+        console.error('Upload error:', err);
+        alert('Failed to upload cover image. Please try again.');
+      } finally {
+        setUploadingCover(false);
+      }
+    }
   };
 
   return (
@@ -2222,6 +2257,17 @@ const CreateProfileRedesigned: React.FC = () => {
           </Box>
         </Box>
       </Container>
+
+      {/* Image Cropper Modal */}
+      <ImageCropperModal
+        open={cropperOpen}
+        onClose={() => setCropperOpen(false)}
+        imageSrc={cropperImage}
+        onCropComplete={handleCropComplete}
+        aspectRatio={cropperType === 'profile' ? 1 : 16 / 9}
+        cropShape={cropperType === 'profile' ? 'round' : 'rect'}
+        title={cropperType === 'profile' ? 'Crop Profile Photo' : 'Crop Cover Image'}
+      />
     </Box>
   );
 };

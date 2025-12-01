@@ -190,7 +190,7 @@ const DashboardPage: React.FC = () => {
       {/* Welcome Header */}
       <Box sx={{ mb: 4 }}>
         <Typography variant="h4" component="h1" gutterBottom sx={{ fontWeight: 700 }}>
-          Welcome back, {user?.name?.split(' ')[0] || 'User'}! 👋
+          Welcome back, {user?.name?.split(' ')[0] || 'User'}!
         </Typography>
         <Typography variant="body1" color="text.secondary">
           Here's what's happening with your digital business cards today.

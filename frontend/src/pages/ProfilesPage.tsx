@@ -45,6 +45,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { profilesAPI } from '../services/api';
 import { Profile } from '../types';
+import LimitWarningDialog from '../components/LimitWarningDialog';
+import { useOrganizationLimits } from '../hooks/useOrganizationLimits';
 
 type ProfileStatus = 'active' | 'draft' | 'archived';
 type FilterType = 'all' | 'active' | 'draft' | 'archived';
@@ -69,7 +71,7 @@ const ProfilesPage: React.FC = () => {
   const theme = useTheme();
   const navigate = useNavigate();
   const { user } = useAuth();
-  
+
   const [profiles, setProfiles] = useState<DisplayProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -78,6 +80,9 @@ const ProfilesPage: React.FC = () => {
   const [selectedProfile, setSelectedProfile] = useState<DisplayProfile | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
+  const [limitWarningOpen, setLimitWarningOpen] = useState(false);
+
+  const { limits, usage, canAddProfile, isNearProfileLimit } = useOrganizationLimits();
 
   useEffect(() => {
     loadProfiles();
@@ -285,7 +290,15 @@ const ProfilesPage: React.FC = () => {
           <Button
             variant="contained"
             startIcon={<AddIcon />}
-            onClick={() => navigate('/profiles/new')}
+            onClick={() => {
+              if (!canAddProfile()) {
+                setLimitWarningOpen(true);
+              } else if (isNearProfileLimit()) {
+                setLimitWarningOpen(true);
+              } else {
+                navigate('/profiles/new');
+              }
+            }}
             sx={{ minWidth: 140 }}
           >
             Create Profile
@@ -601,6 +614,23 @@ const ProfilesPage: React.FC = () => {
           {snackbar.message}
         </Alert>
       </Snackbar>
+
+      {/* Limit Warning Dialog */}
+      {limits && usage && (
+        <LimitWarningDialog
+          open={limitWarningOpen}
+          onClose={() => {
+            setLimitWarningOpen(false);
+            if (canAddProfile()) {
+              navigate('/profiles/new');
+            }
+          }}
+          resourceType="profile"
+          currentUsage={usage.profiles}
+          limit={limits.profiles}
+          isBlocked={!canAddProfile()}
+        />
+      )}
     </Container>
   );
 };

@@ -51,6 +51,9 @@ const createRateLimiter = () => {
 const limiter = createRateLimiter();
 app.use('/api/', limiter);
 
+// Stripe webhook endpoint needs raw body - must be before express.json()
+app.use('/api/payments/webhook', express.raw({ type: 'application/json' }));
+
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
@@ -70,9 +73,12 @@ app.use('/api/templates', require('./routes/templates'));
 app.use('/api/subscriptions', require('./routes/subscriptions'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/upload', require('./routes/upload'));
+app.use('/api/invitations', require('./routes/invitations'));
+app.use('/api/payments', require('./routes/payments'));
 
-// Public profile access routes
+// Public profile access routes (both /p and /api/public for compatibility)
 app.use('/p', require('./routes/public'));
+app.use('/api/public', require('./routes/public'));
 
 // Error handling middleware
 app.use((err, req, res, next) => {

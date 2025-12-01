@@ -1,12 +1,23 @@
 const express = require('express');
 const router = express.Router();
 const { protect } = require('../middleware/auth');
+const { detectTenant } = require('../middleware/tenant');
+const { checkCardLimit, incrementCardUsage, decrementCardUsage } = require('../middleware/subscription');
 const { cardOperations, profileOperations } = require('../utils/dbOperations');
 
 // Get all user cards
-router.get('/', protect, async (req, res) => {
+router.get('/', protect, detectTenant, async (req, res) => {
   try {
-    const cards = await cardOperations.findByUserId(req.user._id);
+    // If user is in an organization and org_admin/admin, show all org cards
+    // Otherwise show only user's own cards
+    let cards;
+    if (req.user.organization && (req.user.role === 'org_admin' || req.user.role === 'admin' || req.user.role === 'super_admin')) {
+      // Get all cards in the organization
+      cards = await cardOperations.findByOrganization(req.user.organization);
+    } else {
+      // Get only user's own cards
+      cards = await cardOperations.findByUserId(req.user._id);
+    }
     
     // Populate profile data for each card
     const cardsWithProfiles = await Promise.all(
@@ -34,19 +45,9 @@ router.get('/', protect, async (req, res) => {
 });
 
 // Create new card
-router.post('/', protect, async (req, res) => {
+router.post('/', protect, checkCardLimit, async (req, res) => {
   try {
     const { profileId, chipType, serialNumber } = req.body;
-    
-    // Check if user can activate more cards (simplified for now)
-    // TODO: Implement subscription check later
-    // const userWithSubscription = await req.user.populate('subscription');
-    // if (!userWithSubscription.subscription.canActivateCard()) {
-    //   return res.status(403).json({
-    //     success: false,
-    //     error: 'Card limit reached for your subscription plan'
-    //   });
-    // }
     
     // Verify profile exists and belongs to user
     const profile = await profileOperations.findById(profileId);
@@ -60,21 +61,22 @@ router.post('/', protect, async (req, res) => {
     
     const card = await cardOperations.create({
       user: req.user._id,
+      organization: req.user.organization || null,
       profile: profileId,
       chipType,
       serialNumber,
       customUrl: `${process.env.FRONTEND_URL}/p/${profile.slug}`,
       qrCodeUrl: profile.qrCode
     });
-    
-    // Update subscription usage (simplified for now)
-    // TODO: Implement subscription usage tracking later
-    // user.subscription.usage.cardsActivated += 1;
-    // await user.subscription.save();
-    
+
+    // Increment organization usage if applicable
+    if (req.organization) {
+      await req.organization.incrementUsage('cards', 1);
+    }
+
     // Add profile data to response
     const cardWithProfile = { ...card, profile };
-    
+
     res.status(201).json({
       success: true,
       data: cardWithProfile

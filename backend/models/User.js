@@ -40,8 +40,28 @@ const userSchema = new mongoose.Schema({
   passwordResetExpire: Date,
   role: {
     type: String,
-    enum: ['user', 'admin'],
+    enum: ['user', 'admin', 'org_admin', 'super_admin'],
     default: 'user'
+  },
+  // Organization/Tenant Association
+  organization: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Organization',
+    default: null
+  },
+  organizationRole: {
+    type: String,
+    enum: ['member', 'admin', 'owner'],
+    default: 'member'
+  },
+  // Department/Team within organization
+  department: {
+    type: String,
+    default: null
+  },
+  jobTitle: {
+    type: String,
+    default: null
   },
   subscription: {
     type: mongoose.Schema.Types.ObjectId,

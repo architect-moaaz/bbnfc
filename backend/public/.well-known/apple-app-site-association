@@ -1,0 +1,26 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "TEAM_ID.com.bbtap.app",
+        "paths": [
+          "/*",
+          "/*/",
+          "/claim/*",
+          "/c/*"
+        ]
+      }
+    ]
+  },
+  "webcredentials": {
+    "apps": [
+      "TEAM_ID.com.bbtap.app"
+    ]
+  },
+  "appclips": {
+    "apps": [
+      "TEAM_ID.com.bbtap.app.Clip"
+    ]
+  }
+}

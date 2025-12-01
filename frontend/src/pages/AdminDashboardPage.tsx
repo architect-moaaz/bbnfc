@@ -90,6 +90,7 @@ const AdminDashboardPage: React.FC = () => {
   const [tabValue, setTabValue] = useState(0);
   const [users, setUsers] = useState<User[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [organizations, setOrganizations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
@@ -102,6 +103,7 @@ const AdminDashboardPage: React.FC = () => {
     totalProfiles: 0,
     totalViews: 0,
     activeProfiles: 0,
+    totalOrganizations: 0,
   });
 
   // Form state for new profile
@@ -425,6 +427,7 @@ const AdminDashboardPage: React.FC = () => {
             <Tabs value={tabValue} onChange={handleTabChange}>
               <Tab label="Users" />
               <Tab label="Profiles" />
+              <Tab label="Organizations" />
               <Tab label="Card Designer" />
             </Tabs>
           </Box>
@@ -599,8 +602,96 @@ const AdminDashboardPage: React.FC = () => {
             </TableContainer>
           </TabPanel>
 
-          {/* Card Designer Tab */}
+          {/* Organizations Tab */}
           <TabPanel value={tabValue} index={2}>
+            <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Typography variant="h6">Organizations Management</Typography>
+            </Box>
+
+            <TableContainer component={Paper} variant="outlined">
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Organization</TableCell>
+                    <TableCell>Owner</TableCell>
+                    <TableCell>Plan</TableCell>
+                    <TableCell>Members</TableCell>
+                    <TableCell>Usage</TableCell>
+                    <TableCell>Created</TableCell>
+                    <TableCell>Actions</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {organizations.length > 0 ? (
+                    organizations.map((org) => (
+                      <TableRow key={org._id}>
+                        <TableCell>
+                          <Box>
+                            <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                              {org.name}
+                            </Typography>
+                            <Typography variant="caption" sx={{ color: '#6B7280' }}>
+                              {org.slug}
+                            </Typography>
+                          </Box>
+                        </TableCell>
+                        <TableCell>{org.owner?.name || org.owner?.email || 'N/A'}</TableCell>
+                        <TableCell>
+                          <Chip
+                            label={org.subscription?.plan || 'free'}
+                            color={
+                              org.subscription?.plan === 'enterprise' ? 'error' :
+                              org.subscription?.plan === 'professional' ? 'primary' :
+                              org.subscription?.plan === 'starter' ? 'secondary' : 'default'
+                            }
+                            size="small"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          {org.usage?.users || 0} / {org.limits?.users === -1 ? '∞' : org.limits?.users || 0}
+                        </TableCell>
+                        <TableCell>
+                          <Box>
+                            <Typography variant="caption">
+                              Profiles: {org.usage?.profiles || 0} / {org.limits?.profiles === -1 ? '∞' : org.limits?.profiles || 0}
+                            </Typography>
+                            <br />
+                            <Typography variant="caption">
+                              Cards: {org.usage?.cards || 0} / {org.limits?.cards === -1 ? '∞' : org.limits?.cards || 0}
+                            </Typography>
+                          </Box>
+                        </TableCell>
+                        <TableCell>{formatDate(org.createdAt)}</TableCell>
+                        <TableCell>
+                          <Tooltip title="View Details">
+                            <IconButton size="small">
+                              <ViewIcon />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Edit Organization">
+                            <IconButton size="small">
+                              <EditIcon />
+                            </IconButton>
+                          </Tooltip>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={7} align="center">
+                        <Typography variant="body2" color="text.secondary" sx={{ py: 4 }}>
+                          No organizations found
+                        </Typography>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </TabPanel>
+
+          {/* Card Designer Tab */}
+          <TabPanel value={tabValue} index={3}>
             <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <Typography variant="h6">Card Designer</Typography>
               <Button

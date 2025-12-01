@@ -253,6 +253,7 @@ const profileOperations = {
     const profileDoc = {
       _id: createObjectId(),
       user: new ObjectId(profileData.user),
+      organization: profileData.organization ? new ObjectId(profileData.organization) : null,
       slug: profileData.slug,
       personalInfo: profileData.personalInfo || {},
       contactInfo: profileData.contactInfo || {},
@@ -296,6 +297,11 @@ const profileOperations = {
   async findByUserId(userId) {
     const db = await getDatabase();
     return await db.collection('profiles').find({ user: new ObjectId(userId) }).sort({ createdAt: -1 }).toArray();
+  },
+
+  async findByOrganization(organizationId) {
+    const db = await getDatabase();
+    return await db.collection('profiles').find({ organization: new ObjectId(organizationId) }).sort({ createdAt: -1 }).toArray();
   },
 
   async updateById(profileId, updates) {
@@ -485,6 +491,7 @@ const cardOperations = {
     const cardDoc = {
       _id: createObjectId(),
       user: new ObjectId(cardData.user),
+      organization: cardData.organization ? new ObjectId(cardData.organization) : null,
       profile: new ObjectId(cardData.profile),
       chipType: cardData.chipType || 'NTAG213',
       serialNumber: cardData.serialNumber,
@@ -515,6 +522,11 @@ const cardOperations = {
   async findByUserId(userId) {
     const db = await getDatabase();
     return await db.collection('cards').find({ user: new ObjectId(userId) }).sort({ createdAt: -1 }).toArray();
+  },
+
+  async findByOrganization(organizationId) {
+    const db = await getDatabase();
+    return await db.collection('cards').find({ organization: new ObjectId(organizationId) }).sort({ createdAt: -1 }).toArray();
   },
 
   async updateById(cardId, updates) {
