@@ -397,18 +397,56 @@ router.get('/subscription-status', protect, async (req, res) => {
  * Documentation: https://simplefatoora.com/fatoora_doc.html
  */
 const axios = require('axios');
+const { settingsOperations } = require('../utils/dbOperations');
 
 const FATOORA_API_BASE = 'https://api.simplefatoora.com';
-const FATOORA_API_KEY = process.env.FATOORA_API_KEY;
 
-// Helper to make Fatoora API calls
-const fatooraApi = axios.create({
-  baseURL: FATOORA_API_BASE,
-  headers: {
-    'Content-Type': 'application/json',
-    'X-API-Key': FATOORA_API_KEY
+// Helper to create Fatoora API instance with dynamic API key
+const createFatooraApi = (apiKey) => {
+  return axios.create({
+    baseURL: FATOORA_API_BASE,
+    headers: {
+      'Content-Type': 'application/json',
+      'X-API-Key': apiKey
+    }
+  });
+};
+
+// Get Fatoora API key from database settings or fallback to env
+const getFatooraApiKey = async () => {
+  try {
+    const settings = await settingsOperations.getPaymentSettings();
+    if (settings.fatoora?.enabled && settings.fatoora?.apiKey) {
+      return settings.fatoora.apiKey;
+    }
+  } catch (error) {
+    console.error('Error fetching Fatoora settings:', error);
   }
-});
+  return process.env.FATOORA_API_KEY;
+};
+
+// Get bank details from database settings or fallback to defaults
+const getBankDetails = async () => {
+  try {
+    const settings = await settingsOperations.getPaymentSettings();
+    if (settings.bankDetails) {
+      return {
+        bankName: settings.bankDetails.bankName || 'Al Rajhi Bank',
+        accountName: settings.bankDetails.accountName || 'BBTap Business Solutions',
+        iban: settings.bankDetails.iban || process.env.PAYMENT_IBAN || 'SA0000000000000000000000',
+        swiftCode: settings.bankDetails.swiftCode || ''
+      };
+    }
+  } catch (error) {
+    console.error('Error fetching bank details:', error);
+  }
+  return {
+    bankName: 'Al Rajhi Bank',
+    accountName: 'BBTap Business Solutions',
+    iban: process.env.PAYMENT_IBAN || 'SA0000000000000000000000',
+    swiftCode: ''
+  };
+};
 
 /**
  * @route   POST /api/payments/fatoora/create-payment
@@ -470,9 +508,14 @@ router.post('/fatoora/create-payment', protect, async (req, res) => {
       $set: { pendingPayment: paymentSession }
     });
 
+    // Get Fatoora API key from database or environment
+    const fatooraApiKey = await getFatooraApiKey();
+
     // If Fatoora API key is configured, create invoice via API
-    if (FATOORA_API_KEY) {
+    if (fatooraApiKey) {
       try {
+        const fatooraApi = createFatooraApi(fatooraApiKey);
+
         // Create invoice using Simple Fatoora API
         const invoiceData = {
           // Client details (individual - client_type: 2)
@@ -537,6 +580,7 @@ router.post('/fatoora/create-payment', protect, async (req, res) => {
 
     // Fallback: Return payment details for manual processing
     const frontendUrl = process.env.FRONTEND_URL || 'https://bbetanfc.vercel.app';
+    const bankDetails = await getBankDetails();
 
     res.json({
       success: true,
@@ -550,11 +594,12 @@ router.post('/fatoora/create-payment', protect, async (req, res) => {
         planName: planNames[planId],
         billingCycle,
         billingPeriod,
-        // Payment instructions
+        // Payment instructions from database settings
         paymentInstructions: {
-          bankName: 'Al Rajhi Bank',
-          accountName: 'BBTap Business Solutions',
-          iban: process.env.PAYMENT_IBAN || 'SA0000000000000000000000',
+          bankName: bankDetails.bankName,
+          accountName: bankDetails.accountName,
+          iban: bankDetails.iban,
+          swiftCode: bankDetails.swiftCode,
           reference: invoiceRef,
         },
         confirmationUrl: `${frontendUrl}/subscription?ref=${invoiceRef}`,

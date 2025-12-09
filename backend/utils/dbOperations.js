@@ -730,6 +730,86 @@ const adminOperations = {
   }
 };
 
+// Settings operations (for admin configuration)
+const settingsOperations = {
+  async get(key) {
+    const db = await getDatabase();
+    const setting = await db.collection('settings').findOne({ key });
+    return setting?.value || null;
+  },
+
+  async set(key, value, updatedBy = null) {
+    const db = await getDatabase();
+    const result = await db.collection('settings').updateOne(
+      { key },
+      {
+        $set: {
+          key,
+          value,
+          updatedAt: new Date(),
+          updatedBy: updatedBy ? new ObjectId(updatedBy) : null
+        },
+        $setOnInsert: { createdAt: new Date() }
+      },
+      { upsert: true }
+    );
+    return result;
+  },
+
+  async getAll() {
+    const db = await getDatabase();
+    const settings = await db.collection('settings').find({}).toArray();
+    // Convert array to object for easier access
+    const settingsObj = {};
+    settings.forEach(s => {
+      settingsObj[s.key] = s.value;
+    });
+    return settingsObj;
+  },
+
+  async getPaymentSettings() {
+    const db = await getDatabase();
+    const settings = await db.collection('settings').find({
+      key: { $in: ['fatoora', 'bankDetails', 'paymentMethods'] }
+    }).toArray();
+
+    const result = {};
+    settings.forEach(s => {
+      result[s.key] = s.value;
+    });
+    return result;
+  },
+
+  async setPaymentSettings(paymentSettings, updatedBy = null) {
+    const db = await getDatabase();
+    const operations = [];
+
+    for (const [key, value] of Object.entries(paymentSettings)) {
+      operations.push({
+        updateOne: {
+          filter: { key },
+          update: {
+            $set: {
+              key,
+              value,
+              updatedAt: new Date(),
+              updatedBy: updatedBy ? new ObjectId(updatedBy) : null
+            },
+            $setOnInsert: { createdAt: new Date() }
+          },
+          upsert: true
+        }
+      });
+    }
+
+    if (operations.length > 0) {
+      await db.collection('settings').bulkWrite(operations);
+    }
+
+    return await this.getPaymentSettings();
+  }
+};
+
 module.exports = {
   userOperations,
   subscriptionOperations,
@@ -737,5 +817,6 @@ module.exports = {
   templateOperations,
   analyticsOperations,
   cardOperations,
-  adminOperations
+  adminOperations,
+  settingsOperations
 };

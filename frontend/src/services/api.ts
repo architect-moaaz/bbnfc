@@ -332,6 +332,30 @@ export const adminAPI = {
     const response = await api.get(`/admin/profiles/slug/${slug}`);
     return response.data;
   },
+
+  // Settings management
+  getPaymentSettings: async (): Promise<ApiResponse<{
+    fatoora: { apiKey: string; enabled: boolean; testMode: boolean };
+    bankDetails: { bankName: string; accountName: string; iban: string; swiftCode: string };
+    paymentMethods: { fatoora: boolean; bankTransfer: boolean; stripe: boolean };
+  }>> => {
+    const response = await api.get('/admin/settings/payment');
+    return response.data;
+  },
+
+  updatePaymentSettings: async (settings: {
+    fatoora?: { apiKey: string; enabled: boolean; testMode: boolean };
+    bankDetails?: { bankName: string; accountName: string; iban: string; swiftCode: string };
+    paymentMethods?: { fatoora: boolean; bankTransfer: boolean; stripe: boolean };
+  }): Promise<ApiResponse<any>> => {
+    const response = await api.put('/admin/settings/payment', settings);
+    return response.data;
+  },
+
+  getAllSettings: async (): Promise<ApiResponse<any>> => {
+    const response = await api.get('/admin/settings');
+    return response.data;
+  },
 };
 
 // Organizations API

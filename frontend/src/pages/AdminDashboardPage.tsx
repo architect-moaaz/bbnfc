@@ -36,6 +36,10 @@ import {
   Avatar,
   useTheme,
   alpha,
+  Alert,
+  FormControlLabel,
+  Switch,
+  CircularProgress,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -55,6 +59,10 @@ import {
   Instagram as InstagramIcon,
   YouTube as YouTubeIcon,
   GitHub as GitHubIcon,
+  Settings as SettingsIcon,
+  Payment as PaymentIcon,
+  AccountBalance as BankIcon,
+  Save as SaveIcon,
 } from '@mui/icons-material';
 import { adminAPI, profilesAPI, templatesAPI, organizationsAPI } from '../services/api';
 import { User, Profile } from '../types';
@@ -117,6 +125,27 @@ const AdminDashboardPage: React.FC = () => {
     activeProfiles: 0,
     totalOrganizations: 0,
   });
+  const [paymentSettings, setPaymentSettings] = useState({
+    fatoora: {
+      apiKey: '',
+      enabled: false,
+      testMode: true,
+    },
+    bankDetails: {
+      bankName: '',
+      accountName: '',
+      iban: '',
+      swiftCode: '',
+    },
+    paymentMethods: {
+      fatoora: false,
+      bankTransfer: true,
+      stripe: false,
+    },
+  });
+  const [savingSettings, setSavingSettings] = useState(false);
+  const [settingsSuccess, setSettingsSuccess] = useState<string | null>(null);
+  const [settingsError, setSettingsError] = useState<string | null>(null);
 
   // Form state for new profile
   const [newProfile, setNewProfile] = useState({
@@ -163,7 +192,42 @@ const AdminDashboardPage: React.FC = () => {
 
   useEffect(() => {
     loadAdminData();
+    loadPaymentSettings();
   }, []);
+
+  const loadPaymentSettings = async () => {
+    try {
+      const response = await adminAPI.getPaymentSettings();
+      if (response.success && response.data) {
+        setPaymentSettings({
+          fatoora: response.data.fatoora || paymentSettings.fatoora,
+          bankDetails: response.data.bankDetails || paymentSettings.bankDetails,
+          paymentMethods: response.data.paymentMethods || paymentSettings.paymentMethods,
+        });
+      }
+    } catch (error) {
+      console.error('Error loading payment settings:', error);
+    }
+  };
+
+  const handleSavePaymentSettings = async () => {
+    try {
+      setSavingSettings(true);
+      setSettingsError(null);
+      setSettingsSuccess(null);
+
+      const response = await adminAPI.updatePaymentSettings(paymentSettings);
+      if (response.success) {
+        setSettingsSuccess('Payment settings saved successfully!');
+        setTimeout(() => setSettingsSuccess(null), 3000);
+      }
+    } catch (error: any) {
+      console.error('Error saving payment settings:', error);
+      setSettingsError(error.response?.data?.error || 'Failed to save settings');
+    } finally {
+      setSavingSettings(false);
+    }
+  };
 
   const loadAdminData = async () => {
     try {
@@ -491,6 +555,7 @@ const AdminDashboardPage: React.FC = () => {
               <Tab label="Profiles" />
               <Tab label="Organizations" />
               <Tab label="Card Designer" />
+              <Tab label="Settings" icon={<SettingsIcon />} iconPosition="start" />
             </Tabs>
           </Box>
 
@@ -784,6 +849,237 @@ const AdminDashboardPage: React.FC = () => {
             <Typography variant="body1" sx={{ color: '#6B7280' }}>
               Design custom card templates and apply them to user profiles. The card designer allows you to customize colors, fonts, layouts, and more.
             </Typography>
+          </TabPanel>
+
+          {/* Settings Tab */}
+          <TabPanel value={tabValue} index={4}>
+            <Box sx={{ mb: 3 }}>
+              <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <SettingsIcon />
+                Payment Settings
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                Configure payment gateways and bank transfer details
+              </Typography>
+            </Box>
+
+            {settingsSuccess && (
+              <Alert severity="success" sx={{ mb: 3 }} onClose={() => setSettingsSuccess(null)}>
+                {settingsSuccess}
+              </Alert>
+            )}
+
+            {settingsError && (
+              <Alert severity="error" sx={{ mb: 3 }} onClose={() => setSettingsError(null)}>
+                {settingsError}
+              </Alert>
+            )}
+
+            <Grid container spacing={3}>
+              {/* Fatoora Settings */}
+              <Grid item xs={12} md={6}>
+                <Paper variant="outlined" sx={{ p: 3 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
+                    <PaymentIcon color="primary" />
+                    <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                      Fatoora Integration
+                    </Typography>
+                  </Box>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                    Simple Fatoora API for ZATCA-compliant e-invoicing in Saudi Arabia
+                  </Typography>
+
+                  <Grid container spacing={2}>
+                    <Grid item xs={12}>
+                      <FormControlLabel
+                        control={
+                          <Switch
+                            checked={paymentSettings.fatoora.enabled}
+                            onChange={(e) => setPaymentSettings({
+                              ...paymentSettings,
+                              fatoora: { ...paymentSettings.fatoora, enabled: e.target.checked }
+                            })}
+                          />
+                        }
+                        label="Enable Fatoora Integration"
+                      />
+                    </Grid>
+                    <Grid item xs={12}>
+                      <TextField
+                        fullWidth
+                        label="Fatoora API Key"
+                        type="password"
+                        value={paymentSettings.fatoora.apiKey}
+                        onChange={(e) => setPaymentSettings({
+                          ...paymentSettings,
+                          fatoora: { ...paymentSettings.fatoora, apiKey: e.target.value }
+                        })}
+                        placeholder="Enter your Fatoora API key"
+                        helperText="Get your API key from simplefatoora.com"
+                        disabled={!paymentSettings.fatoora.enabled}
+                      />
+                    </Grid>
+                    <Grid item xs={12}>
+                      <FormControlLabel
+                        control={
+                          <Switch
+                            checked={paymentSettings.fatoora.testMode}
+                            onChange={(e) => setPaymentSettings({
+                              ...paymentSettings,
+                              fatoora: { ...paymentSettings.fatoora, testMode: e.target.checked }
+                            })}
+                            disabled={!paymentSettings.fatoora.enabled}
+                          />
+                        }
+                        label="Test Mode (Sandbox)"
+                      />
+                    </Grid>
+                  </Grid>
+                </Paper>
+              </Grid>
+
+              {/* Bank Details */}
+              <Grid item xs={12} md={6}>
+                <Paper variant="outlined" sx={{ p: 3 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
+                    <BankIcon color="primary" />
+                    <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                      Bank Transfer Details
+                    </Typography>
+                  </Box>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                    Bank account details shown to customers for manual payments
+                  </Typography>
+
+                  <Grid container spacing={2}>
+                    <Grid item xs={12}>
+                      <TextField
+                        fullWidth
+                        label="Bank Name"
+                        value={paymentSettings.bankDetails.bankName}
+                        onChange={(e) => setPaymentSettings({
+                          ...paymentSettings,
+                          bankDetails: { ...paymentSettings.bankDetails, bankName: e.target.value }
+                        })}
+                        placeholder="e.g., Al Rajhi Bank"
+                      />
+                    </Grid>
+                    <Grid item xs={12}>
+                      <TextField
+                        fullWidth
+                        label="Account Name"
+                        value={paymentSettings.bankDetails.accountName}
+                        onChange={(e) => setPaymentSettings({
+                          ...paymentSettings,
+                          bankDetails: { ...paymentSettings.bankDetails, accountName: e.target.value }
+                        })}
+                        placeholder="e.g., BBTap Business Solutions"
+                      />
+                    </Grid>
+                    <Grid item xs={12}>
+                      <TextField
+                        fullWidth
+                        label="IBAN"
+                        value={paymentSettings.bankDetails.iban}
+                        onChange={(e) => setPaymentSettings({
+                          ...paymentSettings,
+                          bankDetails: { ...paymentSettings.bankDetails, iban: e.target.value }
+                        })}
+                        placeholder="SA0000000000000000000000"
+                        helperText="International Bank Account Number"
+                      />
+                    </Grid>
+                    <Grid item xs={12}>
+                      <TextField
+                        fullWidth
+                        label="SWIFT/BIC Code"
+                        value={paymentSettings.bankDetails.swiftCode}
+                        onChange={(e) => setPaymentSettings({
+                          ...paymentSettings,
+                          bankDetails: { ...paymentSettings.bankDetails, swiftCode: e.target.value }
+                        })}
+                        placeholder="e.g., RJHISARI"
+                      />
+                    </Grid>
+                  </Grid>
+                </Paper>
+              </Grid>
+
+              {/* Payment Methods */}
+              <Grid item xs={12}>
+                <Paper variant="outlined" sx={{ p: 3 }}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>
+                    Enabled Payment Methods
+                  </Typography>
+                  <Grid container spacing={2}>
+                    <Grid item xs={12} sm={4}>
+                      <FormControlLabel
+                        control={
+                          <Switch
+                            checked={paymentSettings.paymentMethods.fatoora}
+                            onChange={(e) => setPaymentSettings({
+                              ...paymentSettings,
+                              paymentMethods: { ...paymentSettings.paymentMethods, fatoora: e.target.checked }
+                            })}
+                          />
+                        }
+                        label="Fatoora E-Invoice"
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={4}>
+                      <FormControlLabel
+                        control={
+                          <Switch
+                            checked={paymentSettings.paymentMethods.bankTransfer}
+                            onChange={(e) => setPaymentSettings({
+                              ...paymentSettings,
+                              paymentMethods: { ...paymentSettings.paymentMethods, bankTransfer: e.target.checked }
+                            })}
+                          />
+                        }
+                        label="Bank Transfer"
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={4}>
+                      <FormControlLabel
+                        control={
+                          <Switch
+                            checked={paymentSettings.paymentMethods.stripe}
+                            onChange={(e) => setPaymentSettings({
+                              ...paymentSettings,
+                              paymentMethods: { ...paymentSettings.paymentMethods, stripe: e.target.checked }
+                            })}
+                          />
+                        }
+                        label="Stripe (Coming Soon)"
+                        disabled
+                      />
+                    </Grid>
+                  </Grid>
+                </Paper>
+              </Grid>
+
+              {/* Save Button */}
+              <Grid item xs={12}>
+                <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
+                  <Button
+                    variant="outlined"
+                    onClick={loadPaymentSettings}
+                  >
+                    Reset
+                  </Button>
+                  <Button
+                    variant="contained"
+                    startIcon={savingSettings ? <CircularProgress size={20} color="inherit" /> : <SaveIcon />}
+                    onClick={handleSavePaymentSettings}
+                    disabled={savingSettings}
+                    sx={{ backgroundColor: theme.palette.primary.main }}
+                  >
+                    {savingSettings ? 'Saving...' : 'Save Settings'}
+                  </Button>
+                </Box>
+              </Grid>
+            </Grid>
           </TabPanel>
         </Card>
 
