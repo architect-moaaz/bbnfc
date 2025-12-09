@@ -1,50 +1,149 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Paper,
   Typography,
   Box,
   Grid,
   useTheme,
+  CircularProgress,
+  Skeleton,
 } from '@mui/material';
 import ChartWrapper from '../charts/ChartWrapper';
+import { analyticsAPI } from '../../services/api';
 
-// Mock data for charts
-const viewsData = {
-  labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-  datasets: [
-    {
-      label: 'Profile Views',
-      data: [12, 19, 15, 25, 22, 18, 24],
-      fill: true,
-    },
-    {
-      label: 'NFC Taps',
-      data: [8, 11, 9, 15, 12, 10, 16],
-      fill: true,
-    },
-  ],
-};
-
-const deviceData = {
-  labels: ['Mobile', 'Desktop', 'Tablet'],
-  datasets: [
-    {
-      data: [65, 25, 10],
-    },
-  ],
-};
-
-const profilePerformanceData = {
-  labels: ['CEO Profile', 'Designer Profile', 'Manager Profile'],
-  datasets: [
-    {
-      data: [45, 30, 25],
-    },
-  ],
-};
+interface WidgetData {
+  viewsTrend: { labels: string[]; views: number[]; taps: number[] };
+  deviceBreakdown: { mobile: number; desktop: number; tablet: number };
+  profilePerformance: { name: string; views: number }[];
+  engagementMetrics: {
+    clickThroughRate: number;
+    contactSaves: number;
+    socialClicks: number;
+    qrScans: number;
+  };
+}
 
 const AnalyticsWidget: React.FC = () => {
   const theme = useTheme();
+  const [loading, setLoading] = useState(true);
+  const [widgetData, setWidgetData] = useState<WidgetData | null>(null);
+
+  useEffect(() => {
+    const fetchWidgetData = async () => {
+      try {
+        setLoading(true);
+        const response = await analyticsAPI.getWidgets('7');
+        if (response.success && response.data) {
+          setWidgetData(response.data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch analytics widgets:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchWidgetData();
+  }, []);
+
+  // Build chart data from API response
+  const viewsData = widgetData ? {
+    labels: widgetData.viewsTrend.labels,
+    datasets: [
+      {
+        label: 'Profile Views',
+        data: widgetData.viewsTrend.views,
+        fill: true,
+      },
+      {
+        label: 'NFC Taps',
+        data: widgetData.viewsTrend.taps,
+        fill: true,
+      },
+    ],
+  } : {
+    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+    datasets: [
+      { label: 'Profile Views', data: [0, 0, 0, 0, 0, 0, 0], fill: true },
+      { label: 'NFC Taps', data: [0, 0, 0, 0, 0, 0, 0], fill: true },
+    ],
+  };
+
+  const deviceData = widgetData ? {
+    labels: ['Mobile', 'Desktop', 'Tablet'],
+    datasets: [
+      {
+        data: [
+          widgetData.deviceBreakdown.mobile,
+          widgetData.deviceBreakdown.desktop,
+          widgetData.deviceBreakdown.tablet
+        ],
+      },
+    ],
+  } : {
+    labels: ['Mobile', 'Desktop', 'Tablet'],
+    datasets: [{ data: [0, 0, 0] }],
+  };
+
+  const profilePerformanceData = widgetData && widgetData.profilePerformance.length > 0 ? {
+    labels: widgetData.profilePerformance.map(p => p.name),
+    datasets: [
+      {
+        data: widgetData.profilePerformance.map(p => p.views),
+      },
+    ],
+  } : {
+    labels: ['No profiles yet'],
+    datasets: [{ data: [0] }],
+  };
+
+  const engagementMetrics = widgetData?.engagementMetrics || {
+    clickThroughRate: 0,
+    contactSaves: 0,
+    socialClicks: 0,
+    qrScans: 0,
+  };
+
+  if (loading) {
+    return (
+      <Grid container spacing={3}>
+        <Grid item xs={12} md={8}>
+          <Paper sx={{ p: 3, height: 400 }}>
+            <Skeleton variant="text" width="60%" height={32} />
+            <Skeleton variant="text" width="80%" height={24} sx={{ mb: 3 }} />
+            <Skeleton variant="rectangular" height={300} />
+          </Paper>
+        </Grid>
+        <Grid item xs={12} md={4}>
+          <Paper sx={{ p: 3, height: 400 }}>
+            <Skeleton variant="text" width="60%" height={32} />
+            <Skeleton variant="text" width="80%" height={24} sx={{ mb: 3 }} />
+            <Skeleton variant="circular" width={200} height={200} sx={{ mx: 'auto' }} />
+          </Paper>
+        </Grid>
+        <Grid item xs={12} md={6}>
+          <Paper sx={{ p: 3, height: 350 }}>
+            <Skeleton variant="text" width="60%" height={32} />
+            <Skeleton variant="text" width="80%" height={24} sx={{ mb: 3 }} />
+            <Skeleton variant="circular" width={200} height={200} sx={{ mx: 'auto' }} />
+          </Paper>
+        </Grid>
+        <Grid item xs={12} md={6}>
+          <Paper sx={{ p: 3, height: 350 }}>
+            <Skeleton variant="text" width="60%" height={32} />
+            <Box sx={{ mt: 3 }}>
+              {[1, 2, 3, 4].map((i) => (
+                <Box key={i} sx={{ mb: 3 }}>
+                  <Skeleton variant="text" width="100%" height={24} />
+                  <Skeleton variant="rectangular" height={8} sx={{ borderRadius: 4 }} />
+                </Box>
+              ))}
+            </Box>
+          </Paper>
+        </Grid>
+      </Grid>
+    );
+  }
 
   return (
     <Grid container spacing={3}>
@@ -97,7 +196,7 @@ const AnalyticsWidget: React.FC = () => {
             <Box sx={{ mb: 3 }}>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                 <Typography variant="body2">Click-through Rate</Typography>
-                <Typography variant="body2" sx={{ fontWeight: 600 }}>7.2%</Typography>
+                <Typography variant="body2" sx={{ fontWeight: 600 }}>{engagementMetrics.clickThroughRate}%</Typography>
               </Box>
               <Box
                 sx={{
@@ -110,7 +209,7 @@ const AnalyticsWidget: React.FC = () => {
                 <Box
                   sx={{
                     height: '100%',
-                    width: '72%',
+                    width: `${Math.min(engagementMetrics.clickThroughRate * 10, 100)}%`,
                     backgroundColor: theme.palette.primary.main,
                     borderRadius: 4,
                   }}
@@ -121,7 +220,7 @@ const AnalyticsWidget: React.FC = () => {
             <Box sx={{ mb: 3 }}>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                 <Typography variant="body2">Contact Saves</Typography>
-                <Typography variant="body2" sx={{ fontWeight: 600 }}>4.8%</Typography>
+                <Typography variant="body2" sx={{ fontWeight: 600 }}>{engagementMetrics.contactSaves}%</Typography>
               </Box>
               <Box
                 sx={{
@@ -134,7 +233,7 @@ const AnalyticsWidget: React.FC = () => {
                 <Box
                   sx={{
                     height: '100%',
-                    width: '48%',
+                    width: `${Math.min(engagementMetrics.contactSaves * 10, 100)}%`,
                     backgroundColor: theme.palette.secondary.main,
                     borderRadius: 4,
                   }}
@@ -145,7 +244,7 @@ const AnalyticsWidget: React.FC = () => {
             <Box sx={{ mb: 3 }}>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                 <Typography variant="body2">Social Media Clicks</Typography>
-                <Typography variant="body2" sx={{ fontWeight: 600 }}>12.5%</Typography>
+                <Typography variant="body2" sx={{ fontWeight: 600 }}>{engagementMetrics.socialClicks}%</Typography>
               </Box>
               <Box
                 sx={{
@@ -158,7 +257,7 @@ const AnalyticsWidget: React.FC = () => {
                 <Box
                   sx={{
                     height: '100%',
-                    width: '85%',
+                    width: `${Math.min(engagementMetrics.socialClicks * 10, 100)}%`,
                     backgroundColor: theme.palette.success.main,
                     borderRadius: 4,
                   }}
@@ -169,7 +268,7 @@ const AnalyticsWidget: React.FC = () => {
             <Box>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                 <Typography variant="body2">QR Code Scans</Typography>
-                <Typography variant="body2" sx={{ fontWeight: 600 }}>3.2%</Typography>
+                <Typography variant="body2" sx={{ fontWeight: 600 }}>{engagementMetrics.qrScans}%</Typography>
               </Box>
               <Box
                 sx={{
@@ -182,7 +281,7 @@ const AnalyticsWidget: React.FC = () => {
                 <Box
                   sx={{
                     height: '100%',
-                    width: '32%',
+                    width: `${Math.min(engagementMetrics.qrScans * 10, 100)}%`,
                     backgroundColor: theme.palette.warning.main,
                     borderRadius: 4,
                   }}

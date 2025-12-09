@@ -56,8 +56,9 @@ import {
   YouTube as YouTubeIcon,
   GitHub as GitHubIcon,
 } from '@mui/icons-material';
-import { adminAPI, profilesAPI, templatesAPI } from '../services/api';
+import { adminAPI, profilesAPI, templatesAPI, organizationsAPI } from '../services/api';
 import { User, Profile } from '../types';
+import BusinessIcon from '@mui/icons-material/Business';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -98,6 +99,17 @@ const AdminDashboardPage: React.FC = () => {
   const [cardDesignerDialog, setCardDesignerDialog] = useState(false);
   const [dialogTabValue, setDialogTabValue] = useState(0);
   const [availableTemplates, setAvailableTemplates] = useState<any[]>([]);
+  const [orgDialogOpen, setOrgDialogOpen] = useState(false);
+  const [upgradeDialogOpen, setUpgradeDialogOpen] = useState(false);
+  const [selectedOrg, setSelectedOrg] = useState<any>(null);
+  const [newOrg, setNewOrg] = useState({
+    name: '',
+    slug: '',
+    ownerEmail: '',
+    ownerName: '',
+    plan: 'free',
+    type: 'business',
+  });
   const [dashboardStats, setDashboardStats] = useState({
     totalUsers: 0,
     totalProfiles: 0,
@@ -319,6 +331,56 @@ const AdminDashboardPage: React.FC = () => {
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString();
+  };
+
+  const handleCreateOrganization = async () => {
+    try {
+      const orgData = {
+        name: newOrg.name,
+        slug: newOrg.slug || newOrg.name.toLowerCase().replace(/\s+/g, '-'),
+        type: newOrg.type,
+        plan: newOrg.plan,
+        ownerId: null, // Will be set by owner email
+        ownerEmail: newOrg.ownerEmail,
+        ownerName: newOrg.ownerName,
+      };
+
+      const response = await organizationsAPI.createOrganization(orgData);
+      if (response.success) {
+        setOrgDialogOpen(false);
+        setNewOrg({
+          name: '',
+          slug: '',
+          ownerEmail: '',
+          ownerName: '',
+          plan: 'free',
+          type: 'business',
+        });
+        loadAdminData();
+        alert('Organization created successfully!');
+      }
+    } catch (error: any) {
+      console.error('Error creating organization:', error);
+      alert(error.response?.data?.error || 'Failed to create organization');
+    }
+  };
+
+  const handleUpgradeOrganization = async (orgId: string, newPlan: string) => {
+    try {
+      const response = await organizationsAPI.updateOrganization(orgId, {
+        plan: newPlan,
+        subscription: { plan: newPlan, status: 'active' }
+      });
+      if (response.success) {
+        setUpgradeDialogOpen(false);
+        setSelectedOrg(null);
+        loadAdminData();
+        alert('Organization plan upgraded successfully!');
+      }
+    } catch (error: any) {
+      console.error('Error upgrading organization:', error);
+      alert(error.response?.data?.error || 'Failed to upgrade organization');
+    }
   };
 
   return (
@@ -606,6 +668,14 @@ const AdminDashboardPage: React.FC = () => {
           <TabPanel value={tabValue} index={2}>
             <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <Typography variant="h6">Organizations Management</Typography>
+              <Button
+                variant="contained"
+                startIcon={<BusinessIcon />}
+                onClick={() => setOrgDialogOpen(true)}
+                sx={{ backgroundColor: theme.palette.primary.main }}
+              >
+                Add Organization
+              </Button>
             </Box>
 
             <TableContainer component={Paper} variant="outlined">
@@ -668,8 +738,15 @@ const AdminDashboardPage: React.FC = () => {
                               <ViewIcon />
                             </IconButton>
                           </Tooltip>
-                          <Tooltip title="Edit Organization">
-                            <IconButton size="small">
+                          <Tooltip title="Upgrade Plan">
+                            <IconButton
+                              size="small"
+                              color="primary"
+                              onClick={() => {
+                                setSelectedOrg(org);
+                                setUpgradeDialogOpen(true);
+                              }}
+                            >
                               <EditIcon />
                             </IconButton>
                           </Tooltip>
@@ -1148,12 +1225,146 @@ const AdminDashboardPage: React.FC = () => {
           </DialogContent>
           <DialogActions>
             <Button onClick={() => setCardDesignerDialog(false)}>Close</Button>
-            <Button 
+            <Button
               variant="contained"
               sx={{ backgroundColor: theme.palette.primary.main }}
             >
               Save Design
             </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Create Organization Dialog */}
+        <Dialog open={orgDialogOpen} onClose={() => setOrgDialogOpen(false)} maxWidth="sm" fullWidth>
+          <DialogTitle>Create New Organization</DialogTitle>
+          <DialogContent>
+            <Grid container spacing={2} sx={{ mt: 1 }}>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Organization Name"
+                  value={newOrg.name}
+                  onChange={(e) => setNewOrg({ ...newOrg, name: e.target.value })}
+                  required
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Slug (URL identifier)"
+                  value={newOrg.slug}
+                  onChange={(e) => setNewOrg({ ...newOrg, slug: e.target.value.toLowerCase().replace(/\s+/g, '-') })}
+                  placeholder="organization-name"
+                  helperText="Leave empty to auto-generate from name"
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Owner Name"
+                  value={newOrg.ownerName}
+                  onChange={(e) => setNewOrg({ ...newOrg, ownerName: e.target.value })}
+                  required
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Owner Email"
+                  type="email"
+                  value={newOrg.ownerEmail}
+                  onChange={(e) => setNewOrg({ ...newOrg, ownerEmail: e.target.value })}
+                  required
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <FormControl fullWidth>
+                  <InputLabel>Organization Type</InputLabel>
+                  <Select
+                    value={newOrg.type}
+                    label="Organization Type"
+                    onChange={(e) => setNewOrg({ ...newOrg, type: e.target.value })}
+                  >
+                    <MenuItem value="business">Business</MenuItem>
+                    <MenuItem value="enterprise">Enterprise</MenuItem>
+                    <MenuItem value="agency">Agency</MenuItem>
+                    <MenuItem value="nonprofit">Non-profit</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <FormControl fullWidth>
+                  <InputLabel>Subscription Plan</InputLabel>
+                  <Select
+                    value={newOrg.plan}
+                    label="Subscription Plan"
+                    onChange={(e) => setNewOrg({ ...newOrg, plan: e.target.value })}
+                  >
+                    <MenuItem value="free">Free</MenuItem>
+                    <MenuItem value="starter">Starter ($29/mo)</MenuItem>
+                    <MenuItem value="professional">Professional ($79/mo)</MenuItem>
+                    <MenuItem value="enterprise">Enterprise ($199/mo)</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+            </Grid>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setOrgDialogOpen(false)}>Cancel</Button>
+            <Button
+              onClick={handleCreateOrganization}
+              variant="contained"
+              disabled={!newOrg.name || !newOrg.ownerEmail}
+              sx={{ backgroundColor: theme.palette.primary.main }}
+            >
+              Create Organization
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Upgrade Organization Dialog */}
+        <Dialog open={upgradeDialogOpen} onClose={() => setUpgradeDialogOpen(false)} maxWidth="sm" fullWidth>
+          <DialogTitle>Upgrade Organization Plan</DialogTitle>
+          <DialogContent>
+            {selectedOrg && (
+              <Box sx={{ mt: 2 }}>
+                <Typography variant="body1" sx={{ mb: 3 }}>
+                  Upgrade <strong>{selectedOrg.name}</strong> subscription plan
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                  Current plan: <Chip label={selectedOrg.subscription?.plan || 'free'} size="small" />
+                </Typography>
+                <Grid container spacing={2}>
+                  {['free', 'starter', 'professional', 'enterprise'].map((plan) => (
+                    <Grid item xs={6} key={plan}>
+                      <Card
+                        sx={{
+                          p: 2,
+                          cursor: 'pointer',
+                          border: selectedOrg.subscription?.plan === plan ? '2px solid' : '1px solid',
+                          borderColor: selectedOrg.subscription?.plan === plan ? 'primary.main' : 'divider',
+                          '&:hover': { borderColor: 'primary.main' },
+                        }}
+                        onClick={() => handleUpgradeOrganization(selectedOrg._id, plan)}
+                      >
+                        <Typography variant="subtitle1" sx={{ fontWeight: 600, textTransform: 'capitalize' }}>
+                          {plan}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {plan === 'free' && 'Free forever'}
+                          {plan === 'starter' && '$29/month'}
+                          {plan === 'professional' && '$79/month'}
+                          {plan === 'enterprise' && '$199/month'}
+                        </Typography>
+                      </Card>
+                    </Grid>
+                  ))}
+                </Grid>
+              </Box>
+            )}
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setUpgradeDialogOpen(false)}>Close</Button>
           </DialogActions>
         </Dialog>
       </Box>

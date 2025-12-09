@@ -589,7 +589,18 @@ const PublicProfileRedesigned: React.FC = () => {
                             key={index}
                             onClick={() => {
                               if (link.url) {
-                                window.open(link.url, '_blank');
+                                if (link.icon === 'file') {
+                                  // For file downloads, create a proper download link
+                                  const downloadLink = document.createElement('a');
+                                  downloadLink.href = link.url;
+                                  downloadLink.download = link.label || 'download';
+                                  downloadLink.target = '_blank';
+                                  document.body.appendChild(downloadLink);
+                                  downloadLink.click();
+                                  document.body.removeChild(downloadLink);
+                                } else {
+                                  window.open(link.url, '_blank');
+                                }
                               }
                             }}
                             sx={{

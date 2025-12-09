@@ -20,6 +20,8 @@ import {
   Skeleton,
   Tooltip,
   Avatar,
+  CircularProgress,
+  Backdrop,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -72,43 +74,104 @@ const CardsPage: React.FC = () => {
   const cards = cardsResponse?.data || [];
   const profiles = profilesResponse?.data || [];
 
-  // Create card mutation
+  // Create card mutation with optimistic update
   const createCardMutation = useMutation({
     mutationFn: cardsAPI.createCard,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['cards'] });
-      enqueueSnackbar('Card created successfully!', { variant: 'success' });
+    onMutate: async (newCardData) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['cards'] });
+      // Snapshot previous value
+      const previousCards = queryClient.getQueryData(['cards']);
+      // Optimistically add new card with temp id
+      const tempCard = {
+        id: `temp-${Date.now()}`,
+        ...newCardData,
+        profile: profiles.find(p => p.id === newCardData.profileId) || newCardData.profileId,
+        tapCount: 0,
+        isActive: newCardData.isActive ?? true,
+        createdAt: new Date().toISOString(),
+      };
+      queryClient.setQueryData(['cards'], (old: any) => ({
+        ...old,
+        data: [...(old?.data || []), tempCard],
+      }));
       handleCloseDialog();
+      return { previousCards };
     },
-    onError: (error: any) => {
+    onSuccess: () => {
+      enqueueSnackbar('Card created successfully!', { variant: 'success' });
+      // Refetch in background to get real data
+      queryClient.invalidateQueries({ queryKey: ['cards'] });
+    },
+    onError: (error: any, _, context) => {
+      // Rollback on error
+      if (context?.previousCards) {
+        queryClient.setQueryData(['cards'], context.previousCards);
+      }
       const message = error.response?.data?.error || 'Failed to create card';
       enqueueSnackbar(message, { variant: 'error' });
     },
   });
 
-  // Update card mutation
+  // Update card mutation with optimistic update
   const updateCardMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: Partial<CardType> }) =>
       cardsAPI.updateCard(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['cards'] });
-      enqueueSnackbar('Card updated successfully!', { variant: 'success' });
+    onMutate: async ({ id, data }) => {
+      await queryClient.cancelQueries({ queryKey: ['cards'] });
+      const previousCards = queryClient.getQueryData(['cards']);
+      // Optimistically update the card
+      queryClient.setQueryData(['cards'], (old: any) => ({
+        ...old,
+        data: old?.data?.map((card: CardType) =>
+          card.id === id
+            ? {
+                ...card,
+                ...data,
+                profile: data.profileId
+                  ? profiles.find(p => p.id === data.profileId) || card.profile
+                  : card.profile,
+              }
+            : card
+        ),
+      }));
       handleCloseDialog();
+      return { previousCards };
     },
-    onError: (error: any) => {
+    onSuccess: () => {
+      enqueueSnackbar('Card updated successfully!', { variant: 'success' });
+      queryClient.invalidateQueries({ queryKey: ['cards'] });
+    },
+    onError: (error: any, _, context) => {
+      if (context?.previousCards) {
+        queryClient.setQueryData(['cards'], context.previousCards);
+      }
       const message = error.response?.data?.error || 'Failed to update card';
       enqueueSnackbar(message, { variant: 'error' });
     },
   });
 
-  // Delete card mutation
+  // Delete card mutation with optimistic update
   const deleteCardMutation = useMutation({
     mutationFn: cardsAPI.deleteCard,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['cards'] });
-      enqueueSnackbar('Card deleted successfully!', { variant: 'success' });
+    onMutate: async (cardId) => {
+      await queryClient.cancelQueries({ queryKey: ['cards'] });
+      const previousCards = queryClient.getQueryData(['cards']);
+      // Optimistically remove the card
+      queryClient.setQueryData(['cards'], (old: any) => ({
+        ...old,
+        data: old?.data?.filter((card: CardType) => card.id !== cardId),
+      }));
+      return { previousCards };
     },
-    onError: (error: any) => {
+    onSuccess: () => {
+      enqueueSnackbar('Card deleted successfully!', { variant: 'success' });
+      queryClient.invalidateQueries({ queryKey: ['cards'] });
+    },
+    onError: (error: any, _, context) => {
+      if (context?.previousCards) {
+        queryClient.setQueryData(['cards'], context.previousCards);
+      }
       const message = error.response?.data?.error || 'Failed to delete card';
       enqueueSnackbar(message, { variant: 'error' });
     },
@@ -207,8 +270,26 @@ const CardsPage: React.FC = () => {
     );
   }
 
+  // Combined loading state for any mutation
+  const isUpdating = updateCardMutation.isPending || deleteCardMutation.isPending || createCardMutation.isPending;
+
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
+      {/* Loading Backdrop */}
+      <Backdrop
+        sx={{ color: '#fff', zIndex: (theme) => theme.zIndex.drawer + 1 }}
+        open={isUpdating}
+      >
+        <Box sx={{ textAlign: 'center' }}>
+          <CircularProgress color="inherit" />
+          <Typography sx={{ mt: 2 }}>
+            {createCardMutation.isPending ? 'Creating card...' :
+             updateCardMutation.isPending ? 'Updating card...' :
+             'Deleting card...'}
+          </Typography>
+        </Box>
+      </Backdrop>
+
       {/* Header */}
       <Box sx={{ mb: 4 }}>
         <Typography variant="h4" component="h1" sx={{ fontWeight: 700, mb: 1 }}>
@@ -220,9 +301,9 @@ const CardsPage: React.FC = () => {
         
         <Button
           variant="contained"
-          startIcon={<AddIcon />}
+          startIcon={isUpdating ? <CircularProgress size={16} color="inherit" /> : <AddIcon />}
           onClick={() => handleOpenDialog()}
-          disabled={createCardMutation.isPending}
+          disabled={isUpdating}
           sx={{ mb: 3 }}
         >
           Add New Card
@@ -386,27 +467,29 @@ const CardsPage: React.FC = () => {
                       <IconButton
                         onClick={() => handleToggleActive(card)}
                         color={card.isActive ? 'success' : 'default'}
+                        disabled={isUpdating}
                       >
                         <PowerIcon />
                       </IconButton>
                     </Tooltip>
-                    
+
                     <Tooltip title="Edit Card">
-                      <IconButton onClick={() => handleOpenDialog(card)}>
+                      <IconButton onClick={() => handleOpenDialog(card)} disabled={isUpdating}>
                         <EditIcon />
                       </IconButton>
                     </Tooltip>
-                    
+
                     <Tooltip title="Analytics">
-                      <IconButton>
+                      <IconButton disabled={isUpdating}>
                         <AnalyticsIcon />
                       </IconButton>
                     </Tooltip>
-                    
+
                     <Tooltip title="Delete Card">
                       <IconButton
                         onClick={() => handleDelete(card.id)}
                         color="error"
+                        disabled={isUpdating}
                       >
                         <DeleteIcon />
                       </IconButton>
@@ -485,13 +568,14 @@ const CardsPage: React.FC = () => {
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseDialog}>
+          <Button onClick={handleCloseDialog} disabled={isUpdating}>
             Cancel
           </Button>
           <Button
             onClick={handleSubmit}
             variant="contained"
             disabled={createCardMutation.isPending || updateCardMutation.isPending}
+            startIcon={createCardMutation.isPending || updateCardMutation.isPending ? <CircularProgress size={16} color="inherit" /> : null}
           >
             {createCardMutation.isPending || updateCardMutation.isPending ? (
               selectedCard ? 'Updating...' : 'Creating...'

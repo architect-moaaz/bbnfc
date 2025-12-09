@@ -1,8 +1,25 @@
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
+const mongoose = require('mongoose');
 const { connectToDatabase } = require('../backend/utils/mongodb');
 require('dotenv').config();
+
+// Connect to MongoDB with Mongoose (for routes that use Mongoose models)
+let isMongooseConnected = false;
+const connectMongoose = async () => {
+  if (isMongooseConnected || mongoose.connection.readyState === 1) {
+    return;
+  }
+  try {
+    await mongoose.connect(process.env.MONGODB_URI);
+    isMongooseConnected = true;
+    console.log('Mongoose connected');
+  } catch (err) {
+    console.error('Mongoose connection error:', err);
+  }
+};
+connectMongoose();
 
 const app = express();
 
@@ -79,6 +96,9 @@ app.use('/api/templates', require('../backend/routes/templates')); // ✅ Update
 app.use('/api/subscriptions', require('../backend/routes/subscriptions')); // ✅ Updated to native driver
 app.use('/api/admin', require('../backend/routes/admin')); // ✅ Updated to native driver
 app.use('/api/upload', require('../backend/routes/upload')); // ✅ Compatible with native driver
+app.use('/api/organizations', require('../backend/routes/organizations')); // Organization management routes
+app.use('/api/invitations', require('../backend/routes/invitations')); // Team invitation routes
+app.use('/api/payments', require('../backend/routes/payments')); // Payment/Stripe routes
 
 // Public profile access routes - Moved to API endpoints
 // The /p/* routes are now handled by the frontend React app

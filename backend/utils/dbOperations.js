@@ -354,25 +354,47 @@ const templateOperations = {
 
   async create(templateData) {
     const db = await getDatabase();
-    
+
+    // Generate slug from name if not provided
+    const slug = templateData.slug || (templateData.name ? templateData.name.toLowerCase()
+      .replace(/[^a-z0-9]/g, '-')
+      .replace(/-+/g, '-')
+      .trim() : `template-${Date.now()}`);
+
     const templateDoc = {
       _id: createObjectId(),
       name: templateData.name,
+      slug: slug,
       description: templateData.description,
-      category: templateData.category || 'business',
-      slug: templateData.slug,
+      category: templateData.category || 'other',
+      thumbnail: templateData.thumbnail || 'https://via.placeholder.com/300x200?text=Template',
+      previewUrl: templateData.previewUrl,
+      structure: templateData.structure || {
+        layout: 'centered',
+        sections: []
+      },
+      defaultColors: templateData.defaultColors || {
+        primary: '#0066cc',
+        secondary: '#f0f0f0',
+        text: '#333333',
+        background: '#ffffff'
+      },
+      defaultFonts: templateData.defaultFonts || {
+        heading: 'Poppins',
+        body: 'Inter'
+      },
+      customCSS: templateData.customCSS,
+      features: templateData.features || [],
       isPremium: templateData.isPremium || false,
       isActive: templateData.isActive !== undefined ? templateData.isActive : true,
       usageCount: 0,
-      preview: templateData.preview || {},
-      config: templateData.config || {},
       createdBy: templateData.createdBy ? new ObjectId(templateData.createdBy) : null,
       createdAt: new Date(),
       updatedAt: new Date()
     };
 
     const result = await db.collection('templates').insertOne(templateDoc);
-    
+
     if (!result.acknowledged) {
       throw new Error('Failed to create template');
     }
@@ -438,6 +460,20 @@ const analyticsOperations = {
     
     return await db.collection('analytics')
       .find({ profile: { $in: objectIds } })
+      .sort({ timestamp: -1 })
+      .limit(limit)
+      .toArray();
+  },
+
+  async findByProfileIdsWithDateRange(profileIds, startDate, limit = 1000) {
+    const db = await getDatabase();
+    const objectIds = profileIds.map(id => new ObjectId(id));
+
+    return await db.collection('analytics')
+      .find({
+        profile: { $in: objectIds },
+        timestamp: { $gte: startDate }
+      })
       .sort({ timestamp: -1 })
       .limit(limit)
       .toArray();

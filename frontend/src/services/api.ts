@@ -191,6 +191,23 @@ export const analyticsAPI = {
     });
     return response.data;
   },
+
+  getWidgets: async (timeRange?: string): Promise<ApiResponse<{
+    viewsTrend: { labels: string[]; views: number[]; taps: number[] };
+    deviceBreakdown: { mobile: number; desktop: number; tablet: number };
+    profilePerformance: { name: string; views: number }[];
+    engagementMetrics: {
+      clickThroughRate: number;
+      contactSaves: number;
+      socialClicks: number;
+      qrScans: number;
+    };
+  }>> => {
+    const response = await api.get('/analytics/widgets', {
+      params: { timeRange }
+    });
+    return response.data;
+  },
 };
 
 // Subscriptions API

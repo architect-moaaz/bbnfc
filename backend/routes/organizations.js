@@ -16,10 +16,12 @@ const tenant = require('../middleware/tenant');
  */
 router.get('/current', protect, async (req, res) => {
   try {
+    // Return null data if user doesn't belong to an organization (not an error)
     if (!req.user.organization) {
-      return res.status(404).json({
-        success: false,
-        error: 'User does not belong to any organization'
+      return res.json({
+        success: true,
+        data: null,
+        message: 'User does not belong to any organization'
       });
     }
 
@@ -28,9 +30,10 @@ router.get('/current', protect, async (req, res) => {
       .populate('members.user', 'name email role');
 
     if (!organization) {
-      return res.status(404).json({
-        success: false,
-        error: 'Organization not found'
+      return res.json({
+        success: true,
+        data: null,
+        message: 'Organization not found'
       });
     }
 

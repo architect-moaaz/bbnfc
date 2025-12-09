@@ -36,6 +36,11 @@ const TemplateSelector: React.FC<TemplateSelectorProps> = ({
         Select a professional template to style your digital business card
       </Typography>
 
+      {templates.length === 0 ? (
+        <Typography variant="body2" color="text.secondary" sx={{ py: 2 }}>
+          No templates available. You can still create a profile with the default style.
+        </Typography>
+      ) : (
       <Grid container spacing={2}>
         {templates.map((template) => {
           const isSelected = selectedTemplateId === template._id || selectedTemplateId === template.id;
@@ -170,6 +175,7 @@ const TemplateSelector: React.FC<TemplateSelectorProps> = ({
           );
         })}
       </Grid>
+      )}
     </Box>
   );
 };

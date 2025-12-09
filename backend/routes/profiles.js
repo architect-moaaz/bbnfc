@@ -7,6 +7,15 @@ const { detectTenant } = require('../middleware/tenant');
 const { checkProfileLimit, incrementProfileUsage, decrementProfileUsage } = require('../middleware/subscription');
 const { profileOperations, templateOperations } = require('../utils/dbOperations');
 
+// Helper to transform profile document (add id from _id)
+const transformProfile = (profile) => {
+  if (!profile) return profile;
+  return {
+    ...profile,
+    id: profile._id?.toString() || profile.id,
+  };
+};
+
 // Get all user profiles
 router.get('/', protect, detectTenant, async (req, res) => {
   try {
@@ -21,17 +30,18 @@ router.get('/', protect, detectTenant, async (req, res) => {
       profiles = await profileOperations.findByUserId(req.user._id);
     }
     
-    // Populate template data for each profile
+    // Populate template data for each profile and transform IDs
     const profilesWithTemplates = await Promise.all(
       profiles.map(async (profile) => {
+        let transformedProfile = transformProfile(profile);
         if (profile.template) {
           const template = await templateOperations.findById(profile.template);
-          return { ...profile, template };
+          transformedProfile = { ...transformedProfile, template };
         }
-        return profile;
+        return transformedProfile;
       })
     );
-    
+
     res.status(200).json({
       success: true,
       count: profilesWithTemplates.length,
@@ -66,13 +76,13 @@ router.get('/:id', protect, async (req, res) => {
       });
     }
     
-    // Populate template data
-    let profileWithTemplate = profile;
+    // Populate template data and transform ID
+    let profileWithTemplate = transformProfile(profile);
     if (profile.template) {
       const template = await templateOperations.findById(profile.template);
-      profileWithTemplate = { ...profile, template };
+      profileWithTemplate = { ...profileWithTemplate, template };
     }
-    
+
     res.status(200).json({
       success: true,
       data: profileWithTemplate
@@ -99,12 +109,17 @@ router.post('/', protect, checkProfileLimit, async (req, res) => {
       sections
     } = req.body;
     
-    // Verify template exists if provided, otherwise use default
-    let templateId = template;
-    // TODO: Re-enable template validation after fixing template operations
-    // For now, set templateId to null to avoid template-related issues
-    if (!templateId) {
-      templateId = null; // Use null instead of trying to find templates
+    // Verify template exists if provided
+    let templateId = null;
+    if (template) {
+      try {
+        const templateDoc = await templateOperations.findById(template);
+        if (templateDoc) {
+          templateId = template;
+        }
+      } catch (err) {
+        console.log('Template validation skipped - invalid template ID format');
+      }
     }
     
     // Transform business hours day names to lowercase to match schema enum
@@ -165,11 +180,11 @@ router.post('/', protect, checkProfileLimit, async (req, res) => {
       await req.organization.incrementUsage('profiles', 1);
     }
 
-    // Populate template data
-    let profileWithTemplate = profile;
+    // Populate template data and transform ID
+    let profileWithTemplate = transformProfile(profile);
     if (profile.template) {
       const template = await templateOperations.findById(profile.template);
-      profileWithTemplate = { ...profile, template };
+      profileWithTemplate = { ...profileWithTemplate, template };
     }
 
     res.status(201).json({
@@ -260,13 +275,13 @@ router.put('/:id', protect, async (req, res) => {
       profile.qrCode = qrCodeDataUrl;
     }
     
-    // Populate template data
-    let profileWithTemplate = profile;
+    // Populate template data and transform ID
+    let profileWithTemplate = transformProfile(profile);
     if (profile.template) {
       const template = await templateOperations.findById(profile.template);
-      profileWithTemplate = { ...profile, template };
+      profileWithTemplate = { ...profileWithTemplate, template };
     }
-    
+
     res.status(200).json({
       success: true,
       data: profileWithTemplate

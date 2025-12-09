@@ -70,11 +70,6 @@ const navItems: NavItem[] = [
     icon: <CreditCardIcon />,
   },
   {
-    title: 'Appearance',
-    path: '/appearance',
-    icon: <PaletteIcon />,
-  },
-  {
     title: 'Analytics',
     path: '/analytics',
     icon: <AnalyticsIcon />,

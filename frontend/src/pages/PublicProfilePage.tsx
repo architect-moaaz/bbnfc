@@ -456,6 +456,16 @@ const PublicProfilePage: React.FC = () => {
     return null;
   }
 
+  // Get template colors or use defaults
+  const templateColors = (typeof profile.template === 'object' && profile.template?.defaultColors)
+    ? profile.template.defaultColors
+    : {
+        primary: '#b59a3b',
+        secondary: '#FEC72D',
+        text: '#2d2d2d',
+        background: '#ffffff'
+      };
+
   return (
     <Box
       sx={{
@@ -520,7 +530,7 @@ const PublicProfilePage: React.FC = () => {
                 }}
               >
                 <svg viewBox="0 0 100 100" preserveAspectRatio="none">
-                  <path d="M0,100 C25,50 75,50 100,0 L100,0 L0,0 Z" fill="#FEC72D" />
+                  <path d="M0,100 C25,50 75,50 100,0 L100,0 L0,0 Z" fill={templateColors.secondary} />
                 </svg>
               </Box>
               {/* Content */}
@@ -532,7 +542,7 @@ const PublicProfilePage: React.FC = () => {
                       width: 128,
                       height: 128,
                       mx: 'auto',
-                      border: '4px solid #b59a3b',
+                      border: `4px solid ${templateColors.primary}`,
                       fontSize: '3rem',
                       fontWeight: 600,
                     }}
@@ -560,6 +570,18 @@ const PublicProfilePage: React.FC = () => {
                 >
                   {profile.personalInfo.title}
                 </Typography>
+                {profile.personalInfo.company && (
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      color: '#505050',
+                      fontSize: { xs: '0.75rem', sm: '0.8rem' },
+                      mt: 0.5,
+                    }}
+                  >
+                    {profile.personalInfo.company}
+                  </Typography>
+                )}
                 <Typography
                   variant="body2"
                   sx={{
@@ -568,7 +590,9 @@ const PublicProfilePage: React.FC = () => {
                     mt: 2,
                   }}
                 >
-                  {profile.contactInfo?.address?.city || 'Location not specified'}
+                  {profile.contactInfo?.address?.city && profile.contactInfo?.address?.country
+                    ? `${profile.contactInfo.address.city}, ${profile.contactInfo.address.country}`
+                    : profile.contactInfo?.address?.city || profile.contactInfo?.address?.country || 'Location not specified'}
                 </Typography>
                 {/* Social Links */}
                 <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center', gap: 2 }}>
@@ -653,7 +677,7 @@ const PublicProfilePage: React.FC = () => {
                     onClick={() => handleContact('phone', profile.contactInfo.phone!)}
                     sx={{
                       cursor: 'pointer',
-                      '&:hover': { color: '#b59a3b' },
+                      '&:hover': { color: templateColors.primary },
                       transition: 'color 0.2s'
                     }}
                   >
@@ -666,7 +690,7 @@ const PublicProfilePage: React.FC = () => {
                     onClick={() => handleContact('email', profile.contactInfo.email!)}
                     sx={{
                       cursor: 'pointer',
-                      '&:hover': { color: '#b59a3b' },
+                      '&:hover': { color: templateColors.primary },
                       transition: 'color 0.2s'
                     }}
                   >
@@ -679,12 +703,24 @@ const PublicProfilePage: React.FC = () => {
                     onClick={() => handleContact('website', profile.contactInfo.website!)}
                     sx={{
                       cursor: 'pointer',
-                      '&:hover': { color: '#b59a3b' },
+                      '&:hover': { color: templateColors.primary },
                       transition: 'color 0.2s'
                     }}
                   >
                     <Typography component="span" sx={{ fontWeight: 500 }}>Website:</Typography>{' '}
                     {profile.contactInfo.website}
+                  </Box>
+                )}
+                {profile.contactInfo?.address && (profile.contactInfo.address.street || profile.contactInfo.address.city) && (
+                  <Box sx={{ mt: 1 }}>
+                    <Typography component="span" sx={{ fontWeight: 500 }}>Address:</Typography>{' '}
+                    {[
+                      profile.contactInfo.address.street,
+                      profile.contactInfo.address.city,
+                      profile.contactInfo.address.state,
+                      profile.contactInfo.address.postalCode,
+                      profile.contactInfo.address.country
+                    ].filter(Boolean).join(', ')}
                   </Box>
                 )}
               </Box>
@@ -817,7 +853,7 @@ const PublicProfilePage: React.FC = () => {
                   sx={{
                     px: { xs: 2.5, sm: 3 },
                     py: { xs: 1.2, sm: 1.5 },
-                    backgroundColor: '#b59a3b',
+                    backgroundColor: templateColors.primary,
                     color: 'white',
                     fontSize: { xs: '0.8rem', sm: '0.875rem' },
                     fontWeight: 600,
@@ -826,10 +862,10 @@ const PublicProfilePage: React.FC = () => {
                     minWidth: { xs: '120px', sm: '140px' },
                     flex: { xs: '1 1 auto', sm: '0 0 auto' },
                     maxWidth: { xs: '160px', sm: 'none' },
-                    boxShadow: '0 2px 8px rgba(181, 154, 59, 0.3)',
+                    boxShadow: `0 2px 8px ${alpha(templateColors.primary, 0.3)}`,
                     '&:hover': {
-                      backgroundColor: '#8c752c',
-                      boxShadow: '0 4px 12px rgba(181, 154, 59, 0.4)',
+                      backgroundColor: templateColors.secondary,
+                      boxShadow: `0 4px 12px ${alpha(templateColors.primary, 0.4)}`,
                       transform: 'translateY(-1px)',
                     },
                     transition: 'all 0.3s ease',

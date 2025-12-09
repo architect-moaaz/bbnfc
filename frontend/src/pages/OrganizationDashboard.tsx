@@ -142,6 +142,7 @@ const OrganizationDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [organization, setOrganization] = useState<Organization | null>(null);
   const [members, setMembers] = useState<any[]>([]);
+  const [profiles, setProfiles] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -153,11 +154,22 @@ const OrganizationDashboard: React.FC = () => {
         const orgResponse = await organizationsAPI.getCurrentOrganization();
         if (orgResponse.success && orgResponse.data) {
           setOrganization(orgResponse.data);
+          const orgId = orgResponse.data.id || orgResponse.data._id || '';
 
           // Fetch members
-          const membersResponse = await organizationsAPI.getMembers(orgResponse.data.id || orgResponse.data._id || '');
+          const membersResponse = await organizationsAPI.getMembers(orgId);
           if (membersResponse.success && membersResponse.data) {
             setMembers(membersResponse.data);
+          }
+
+          // Fetch profiles
+          try {
+            const profilesResponse = await organizationsAPI.getProfiles(orgId);
+            if (profilesResponse.success && profilesResponse.data) {
+              setProfiles(profilesResponse.data);
+            }
+          } catch (profileErr) {
+            console.warn('Failed to fetch profiles:', profileErr);
           }
         }
 
@@ -352,6 +364,103 @@ const OrganizationDashboard: React.FC = () => {
                 </Button>
               </Grid>
             </Grid>
+          </Paper>
+        </Grid>
+
+        {/* Organization Profiles */}
+        <Grid item xs={12}>
+          <Paper sx={{ p: 3 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
+              <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                Organization Profiles
+              </Typography>
+              <Button
+                size="small"
+                onClick={() => navigate('/profiles')}
+                endIcon={<AddIcon />}
+              >
+                View All
+              </Button>
+            </Box>
+
+            <TableContainer>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Profile</TableCell>
+                    <TableCell>Owner</TableCell>
+                    <TableCell>Views</TableCell>
+                    <TableCell>Status</TableCell>
+                    <TableCell align="right">Actions</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {profiles.length > 0 ? (
+                    profiles.slice(0, 5).map((profile) => (
+                      <TableRow key={profile.id || profile._id}>
+                        <TableCell>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                            <Avatar
+                              src={profile.personalInfo?.profilePhoto}
+                              sx={{ bgcolor: 'secondary.main' }}
+                            >
+                              {profile.personalInfo?.firstName?.charAt(0) || 'P'}
+                            </Avatar>
+                            <Box>
+                              <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                                {profile.personalInfo?.firstName} {profile.personalInfo?.lastName}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                {profile.personalInfo?.title || 'No title'}
+                              </Typography>
+                            </Box>
+                          </Box>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2" color="text.secondary">
+                            {profile.user?.name || profile.user?.email || '-'}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2">
+                            {profile.analytics?.views || 0}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Chip
+                            label={profile.isActive ? 'Active' : 'Inactive'}
+                            size="small"
+                            color={profile.isActive ? 'success' : 'default'}
+                          />
+                        </TableCell>
+                        <TableCell align="right">
+                          <IconButton
+                            size="small"
+                            onClick={() => navigate(`/profiles/${profile.id || profile._id}/edit`)}
+                          >
+                            <EditIcon fontSize="small" />
+                          </IconButton>
+                          <IconButton
+                            size="small"
+                            onClick={() => window.open(`/p/${profile.slug || profile.id || profile._id}`, '_blank')}
+                          >
+                            <MoreVertIcon fontSize="small" />
+                          </IconButton>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={5} align="center">
+                        <Typography variant="body2" color="text.secondary" sx={{ py: 4 }}>
+                          No profiles found. Create profiles for your team members!
+                        </Typography>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
           </Paper>
         </Grid>
 

@@ -26,6 +26,10 @@ import {
   Switch,
   FormControlLabel,
   CircularProgress,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from '@mui/material';
 import {
   Check as CheckIcon,
@@ -36,15 +40,11 @@ import {
   CalendarToday as CalendarIcon,
   Autorenew as RenewIcon,
 } from '@mui/icons-material';
-import { useNavigate } from 'react-router-dom';
-import { loadStripe } from '@stripe/stripe-js';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { organizationsAPI } from '../services/api';
 import SubscriptionUsageCard from '../components/SubscriptionUsageCard';
 import { useOrganizationLimits } from '../hooks/useOrganizationLimits';
-
-// Initialize Stripe
-const stripePromise = loadStripe(process.env.REACT_APP_STRIPE_PUBLIC_KEY || '');
 
 interface PlanFeature {
   name: string;
@@ -98,7 +98,7 @@ const plans: Plan[] = [
   {
     id: 'starter',
     name: 'Starter',
-    price: 29,
+    price: 109, // SAR
     interval: 'month',
     description: 'Great for small teams',
     popular: true,
@@ -124,7 +124,7 @@ const plans: Plan[] = [
   {
     id: 'professional',
     name: 'Professional',
-    price: 79,
+    price: 299, // SAR
     interval: 'month',
     description: 'For growing businesses',
     recommended: true,
@@ -150,7 +150,7 @@ const plans: Plan[] = [
   {
     id: 'enterprise',
     name: 'Enterprise',
-    price: 199,
+    price: 749, // SAR
     interval: 'month',
     description: 'For large organizations',
     features: [
@@ -176,14 +176,37 @@ const plans: Plan[] = [
 
 const SubscriptionPage: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [currentPlan, setCurrentPlan] = useState<string>('free');
   const [billingCycle, setBillingCycle] = useState<'month' | 'year'>('month');
   const [organization, setOrganization] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [processingPlan, setProcessingPlan] = useState<string | null>(null);
+  const [invoiceData, setInvoiceData] = useState<any>(null);
+  const [showInvoiceDialog, setShowInvoiceDialog] = useState(false);
 
   const { limits, usage } = useOrganizationLimits();
+
+  // Handle payment callback status
+  useEffect(() => {
+    const paymentStatus = searchParams.get('payment');
+    const plan = searchParams.get('plan');
+
+    if (paymentStatus === 'success') {
+      setSuccess(`Payment successful! Your plan has been upgraded${plan ? ` to ${plan}` : ''}.`);
+      // Refresh subscription data
+      fetchSubscriptionData();
+    } else if (paymentStatus === 'failed') {
+      setError('Payment failed. Please try again.');
+    } else if (paymentStatus === 'cancelled') {
+      setError('Payment was cancelled.');
+    } else if (paymentStatus === 'error') {
+      const message = searchParams.get('message');
+      setError(message ? decodeURIComponent(message) : 'An error occurred during payment.');
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     fetchSubscriptionData();
@@ -214,6 +237,7 @@ const SubscriptionPage: React.FC = () => {
     try {
       setProcessingPlan(planId);
       setError(null);
+      setSuccess(null);
 
       // Get auth token
       const token = localStorage.getItem('token');
@@ -222,9 +246,9 @@ const SubscriptionPage: React.FC = () => {
         return;
       }
 
-      // Create checkout session
+      // Create Fatoora invoice
       const response = await axios.post(
-        `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/payments/create-checkout-session`,
+        `${process.env.REACT_APP_API_URL || ''}/api/payments/fatoora/create-payment`,
         {
           planId,
           billingCycle: billingCycle === 'year' ? 'yearly' : 'monthly',
@@ -237,26 +261,20 @@ const SubscriptionPage: React.FC = () => {
       );
 
       if (response.data.success) {
-        const stripe = await stripePromise;
+        // Show invoice dialog with payment details
+        setInvoiceData(response.data.data);
+        setShowInvoiceDialog(true);
 
-        if (!stripe) {
-          throw new Error('Stripe failed to load');
-        }
-
-        // Redirect to Stripe Checkout
-        const { error: stripeError } = await stripe.redirectToCheckout({
-          sessionId: response.data.data.sessionId,
-        });
-
-        if (stripeError) {
-          throw stripeError;
+        // If there's an invoice URL from Fatoora, open it in a new tab
+        if (response.data.data.invoiceUrl) {
+          window.open(response.data.data.invoiceUrl, '_blank');
         }
       } else {
-        throw new Error(response.data.error || 'Failed to create checkout session');
+        throw new Error(response.data.error || 'Failed to create invoice');
       }
     } catch (err: any) {
       console.error('Upgrade error:', err);
-      setError(err.response?.data?.error || err.message || 'Failed to start checkout process');
+      setError(err.response?.data?.error || err.message || 'Failed to create invoice');
     } finally {
       setProcessingPlan(null);
     }
@@ -297,7 +315,14 @@ const SubscriptionPage: React.FC = () => {
   };
 
   const getYearlyPrice = (monthlyPrice: number) => {
-    return Math.floor(monthlyPrice * 12 * 0.8); // 20% discount for yearly
+    // SAR yearly prices (approximately 20-25% discount)
+    const yearlyPrices: { [key: number]: number } = {
+      0: 0,
+      109: 999,   // Starter yearly
+      299: 2699,  // Professional yearly
+      749: 6999,  // Enterprise yearly
+    };
+    return yearlyPrices[monthlyPrice] || Math.floor(monthlyPrice * 12 * 0.8);
   };
 
   if (loading) {
@@ -336,8 +361,14 @@ const SubscriptionPage: React.FC = () => {
         </Box>
       </Box>
 
+      {success && (
+        <Alert severity="success" sx={{ mb: 3 }} onClose={() => setSuccess(null)}>
+          {success}
+        </Alert>
+      )}
+
       {error && (
-        <Alert severity="error" sx={{ mb: 3 }}>
+        <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>
           {error}
         </Alert>
       )}
@@ -403,10 +434,10 @@ const SubscriptionPage: React.FC = () => {
                   {/* Price */}
                   <Box sx={{ mb: 2 }}>
                     <Typography variant="h3" component="div" sx={{ fontWeight: 700, color: 'primary.main' }}>
-                      ${price}
+                      {price === 0 ? 'Free' : `${price} SAR`}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                      {priceLabel}
+                      {price === 0 ? '' : priceLabel}
                     </Typography>
                   </Box>
 
@@ -583,6 +614,128 @@ const SubscriptionPage: React.FC = () => {
           </Table>
         </TableContainer>
       </Paper>
+
+      {/* Invoice Dialog */}
+      <Dialog
+        open={showInvoiceDialog}
+        onClose={() => setShowInvoiceDialog(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle sx={{ fontWeight: 600 }}>
+          Invoice Created Successfully
+        </DialogTitle>
+        <DialogContent>
+          {invoiceData && (
+            <Box>
+              <Alert severity="info" sx={{ mb: 3 }}>
+                {invoiceData.message || 'Please complete payment to activate your subscription.'}
+              </Alert>
+
+              <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
+                <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                  Invoice Details
+                </Typography>
+                <Grid container spacing={2}>
+                  <Grid item xs={6}>
+                    <Typography variant="body2" color="text.secondary">Reference</Typography>
+                    <Typography variant="body1" sx={{ fontWeight: 600 }}>{invoiceData.reference}</Typography>
+                  </Grid>
+                  {invoiceData.invoiceNumber && (
+                    <Grid item xs={6}>
+                      <Typography variant="body2" color="text.secondary">Invoice Number</Typography>
+                      <Typography variant="body1" sx={{ fontWeight: 600 }}>{invoiceData.invoiceNumber}</Typography>
+                    </Grid>
+                  )}
+                  <Grid item xs={6}>
+                    <Typography variant="body2" color="text.secondary">Plan</Typography>
+                    <Typography variant="body1">{invoiceData.planName || invoiceData.plan}</Typography>
+                  </Grid>
+                  <Grid item xs={6}>
+                    <Typography variant="body2" color="text.secondary">Billing Period</Typography>
+                    <Typography variant="body1">{invoiceData.billingPeriod || invoiceData.billingCycle}</Typography>
+                  </Grid>
+                </Grid>
+              </Paper>
+
+              <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
+                <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                  Amount
+                </Typography>
+                <Grid container spacing={1}>
+                  <Grid item xs={8}>
+                    <Typography variant="body2">Subtotal</Typography>
+                  </Grid>
+                  <Grid item xs={4}>
+                    <Typography variant="body2" align="right">{invoiceData.amount} SAR</Typography>
+                  </Grid>
+                  <Grid item xs={8}>
+                    <Typography variant="body2">VAT (15%)</Typography>
+                  </Grid>
+                  <Grid item xs={4}>
+                    <Typography variant="body2" align="right">{invoiceData.vatAmount} SAR</Typography>
+                  </Grid>
+                  <Grid item xs={12}><Divider sx={{ my: 1 }} /></Grid>
+                  <Grid item xs={8}>
+                    <Typography variant="body1" sx={{ fontWeight: 600 }}>Total</Typography>
+                  </Grid>
+                  <Grid item xs={4}>
+                    <Typography variant="body1" sx={{ fontWeight: 600 }} align="right">{invoiceData.totalAmount} SAR</Typography>
+                  </Grid>
+                </Grid>
+              </Paper>
+
+              {invoiceData.paymentInstructions && (
+                <Paper variant="outlined" sx={{ p: 2, bgcolor: 'grey.50' }}>
+                  <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                    Bank Transfer Details
+                  </Typography>
+                  <Grid container spacing={1}>
+                    <Grid item xs={4}>
+                      <Typography variant="body2" color="text.secondary">Bank</Typography>
+                    </Grid>
+                    <Grid item xs={8}>
+                      <Typography variant="body2">{invoiceData.paymentInstructions.bankName}</Typography>
+                    </Grid>
+                    <Grid item xs={4}>
+                      <Typography variant="body2" color="text.secondary">Account Name</Typography>
+                    </Grid>
+                    <Grid item xs={8}>
+                      <Typography variant="body2">{invoiceData.paymentInstructions.accountName}</Typography>
+                    </Grid>
+                    <Grid item xs={4}>
+                      <Typography variant="body2" color="text.secondary">IBAN</Typography>
+                    </Grid>
+                    <Grid item xs={8}>
+                      <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>{invoiceData.paymentInstructions.iban}</Typography>
+                    </Grid>
+                    <Grid item xs={4}>
+                      <Typography variant="body2" color="text.secondary">Reference</Typography>
+                    </Grid>
+                    <Grid item xs={8}>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>{invoiceData.paymentInstructions.reference}</Typography>
+                    </Grid>
+                  </Grid>
+                </Paper>
+              )}
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ p: 2, pt: 0 }}>
+          {invoiceData?.invoiceUrl && (
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={() => window.open(invoiceData.invoiceUrl, '_blank')}
+            >
+              View Invoice PDF
+            </Button>
+          )}
+          <Button onClick={() => setShowInvoiceDialog(false)}>
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 };

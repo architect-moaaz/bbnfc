@@ -127,6 +127,7 @@ interface MobilePreviewProps {
   showSaveButton?: boolean;
   showLocation?: boolean;
   showBusinessHours?: boolean;
+  template?: Template | null;
 }
 
 const MobilePreview: React.FC<MobilePreviewProps> = ({
@@ -134,10 +135,19 @@ const MobilePreview: React.FC<MobilePreviewProps> = ({
   orientation = 'portrait',
   showSaveButton = true,
   showLocation = true,
-  showBusinessHours = true
+  showBusinessHours = true,
+  template = null
 }) => {
   const fullName = `${profile.personalInfo?.firstName || ''} ${profile.personalInfo?.lastName || ''}`.trim();
   const isLandscape = orientation === 'landscape';
+
+  // Get template colors or use defaults
+  const templateColors = template?.defaultColors || {
+    primary: '#667EEA',
+    secondary: '#764BA2',
+    text: '#1A1A1A',
+    background: '#F9FAFB'
+  };
 
   return (
     <Box
@@ -181,13 +191,13 @@ const MobilePreview: React.FC<MobilePreviewProps> = ({
         }}
       >
         {/* Profile Content */}
-        <Box sx={{ height: '100%', overflowY: 'auto', backgroundColor: '#F9FAFB' }}>
+        <Box sx={{ height: '100%', overflowY: 'auto', backgroundColor: templateColors.background }}>
           {/* Header with gradient or cover image */}
           <Box
             sx={{
               background: profile.customization?.backgroundImage
                 ? `url(${profile.customization.backgroundImage})`
-                : 'linear-gradient(135deg, #667EEA 0%, #764BA2 100%)',
+                : `linear-gradient(135deg, ${templateColors.primary} 0%, ${templateColors.secondary} 100%)`,
               backgroundSize: 'cover',
               backgroundPosition: 'center',
               height: 140,
@@ -262,7 +272,7 @@ const MobilePreview: React.FC<MobilePreviewProps> = ({
               <Typography
                 variant="body2"
                 sx={{
-                  color: '#2D6EF5',
+                  color: templateColors.primary,
                   fontWeight: 600,
                   fontSize: '0.875rem',
                   mb: 0.75,
@@ -971,9 +981,10 @@ const CreateProfileRedesigned: React.FC = () => {
           navigate('/profiles');
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating profile:', error);
-      alert('Failed to create profile. Please try again.');
+      const errorMessage = error?.response?.data?.error || error?.message || 'Failed to create profile. Please try again.';
+      alert(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -1480,13 +1491,13 @@ const CreateProfileRedesigned: React.FC = () => {
                       key={action.id}
                       id={action.id}
                       icon={action.icon}
-                      label={action.label || 'Add contact info'}
+                      label={action.label}
                       type={action.type}
                       isPrimary={action.isPrimary}
-                      onDelete={() => setContactActions(contactActions.filter((a) => a.id !== action.id))}
+                      onDelete={() => setContactActions((prev) => prev.filter((a) => a.id !== action.id))}
                       onLabelChange={(newLabel) => {
-                        setContactActions(
-                          contactActions.map((a) =>
+                        setContactActions((prev) =>
+                          prev.map((a) =>
                             a.id === action.id ? { ...a, label: newLabel } : a
                           )
                         );
@@ -2245,6 +2256,7 @@ const CreateProfileRedesigned: React.FC = () => {
                 showSaveButton={showSaveButton}
                 showLocation={showLocation}
                 showBusinessHours={showBusinessHours}
+                template={templates.find(t => t._id === selectedTemplate || t.id === selectedTemplate) || null}
               />
             </Box>
           </Box>

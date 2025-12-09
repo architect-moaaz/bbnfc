@@ -5,6 +5,15 @@ const { detectTenant } = require('../middleware/tenant');
 const { checkCardLimit, incrementCardUsage, decrementCardUsage } = require('../middleware/subscription');
 const { cardOperations, profileOperations } = require('../utils/dbOperations');
 
+// Helper to transform card document (add id from _id)
+const transformCard = (card) => {
+  if (!card) return card;
+  return {
+    ...card,
+    id: card._id?.toString() || card.id,
+  };
+};
+
 // Get all user cards
 router.get('/', protect, detectTenant, async (req, res) => {
   try {
@@ -18,18 +27,24 @@ router.get('/', protect, detectTenant, async (req, res) => {
       // Get only user's own cards
       cards = await cardOperations.findByUserId(req.user._id);
     }
-    
-    // Populate profile data for each card
+
+    // Populate profile data for each card and transform IDs
     const cardsWithProfiles = await Promise.all(
       cards.map(async (card) => {
+        let transformedCard = transformCard(card);
         if (card.profile) {
           const profile = await profileOperations.findById(card.profile);
-          return { ...card, profile };
+          if (profile) {
+            transformedCard = {
+              ...transformedCard,
+              profile: { ...profile, id: profile._id?.toString() || profile.id }
+            };
+          }
         }
-        return card;
+        return transformedCard;
       })
     );
-    
+
     res.status(200).json({
       success: true,
       count: cardsWithProfiles.length,
@@ -74,8 +89,11 @@ router.post('/', protect, checkCardLimit, async (req, res) => {
       await req.organization.incrementUsage('cards', 1);
     }
 
-    // Add profile data to response
-    const cardWithProfile = { ...card, profile };
+    // Add profile data to response and transform IDs
+    const cardWithProfile = {
+      ...transformCard(card),
+      profile: { ...profile, id: profile._id?.toString() || profile.id }
+    };
 
     res.status(201).json({
       success: true,
@@ -136,14 +154,19 @@ router.put('/:id', protect, async (req, res) => {
     
     await cardOperations.updateById(req.params.id, updateData);
     const card = await cardOperations.findById(req.params.id);
-    
-    // Populate profile data
-    let cardWithProfile = card;
+
+    // Populate profile data and transform IDs
+    let cardWithProfile = transformCard(card);
     if (card.profile) {
       const profile = await profileOperations.findById(card.profile);
-      cardWithProfile = { ...card, profile };
+      if (profile) {
+        cardWithProfile = {
+          ...cardWithProfile,
+          profile: { ...profile, id: profile._id?.toString() || profile.id }
+        };
+      }
     }
-    
+
     res.status(200).json({
       success: true,
       data: cardWithProfile

@@ -208,4 +208,148 @@ router.get('/dashboard', protect, async (req, res) => {
   }
 });
 
+// Get dashboard widget data (for charts)
+router.get('/widgets', protect, async (req, res) => {
+  try {
+    const { timeRange = '7d' } = req.query;
+    const days = parseInt(timeRange) || 7;
+
+    // Get all user profiles
+    const profiles = await profileOperations.findByUserId(req.user._id);
+    const profileIds = profiles.map(p => p._id.toString());
+
+    if (profileIds.length === 0) {
+      return res.status(200).json({
+        success: true,
+        data: {
+          viewsTrend: {
+            labels: [],
+            views: [],
+            taps: []
+          },
+          deviceBreakdown: {
+            mobile: 0,
+            desktop: 0,
+            tablet: 0
+          },
+          profilePerformance: [],
+          engagementMetrics: {
+            clickThroughRate: 0,
+            contactSaves: 0,
+            socialClicks: 0,
+            qrScans: 0
+          }
+        }
+      });
+    }
+
+    // Calculate date labels for the last N days
+    const labels = [];
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const today = new Date();
+
+    for (let i = days - 1; i >= 0; i--) {
+      const date = new Date(today);
+      date.setDate(date.getDate() - i);
+      labels.push(dayNames[date.getDay()]);
+    }
+
+    // Get analytics events for the time range
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+
+    const analyticsEvents = await analyticsOperations.findByProfileIdsWithDateRange(profileIds, startDate);
+
+    // Calculate views and taps per day
+    const viewsPerDay = new Array(days).fill(0);
+    const tapsPerDay = new Array(days).fill(0);
+
+    // Device breakdown
+    const deviceCounts = { mobile: 0, desktop: 0, tablet: 0 };
+
+    // Click tracking
+    let totalClicks = 0;
+    let socialClicks = 0;
+    let contactDownloads = 0;
+    let qrScans = 0;
+    let totalViews = 0;
+
+    analyticsEvents.forEach(event => {
+      const eventDate = new Date(event.timestamp);
+      const dayIndex = days - 1 - Math.floor((today - eventDate) / (1000 * 60 * 60 * 24));
+
+      if (dayIndex >= 0 && dayIndex < days) {
+        if (event.eventType === 'view') {
+          viewsPerDay[dayIndex]++;
+          totalViews++;
+        } else if (event.eventType === 'tap') {
+          tapsPerDay[dayIndex]++;
+        } else if (event.eventType === 'scan') {
+          qrScans++;
+        }
+      }
+
+      // Count by event type
+      if (event.eventType === 'click') {
+        totalClicks++;
+        if (event.eventData?.linkType === 'social') {
+          socialClicks++;
+        }
+      } else if (event.eventType === 'download') {
+        contactDownloads++;
+      }
+
+      // Device breakdown from visitor data
+      const userAgent = event.visitor?.userAgent?.toLowerCase() || '';
+      if (userAgent.includes('mobile') || userAgent.includes('iphone') || userAgent.includes('android')) {
+        if (userAgent.includes('tablet') || userAgent.includes('ipad')) {
+          deviceCounts.tablet++;
+        } else {
+          deviceCounts.mobile++;
+        }
+      } else {
+        deviceCounts.desktop++;
+      }
+    });
+
+    // Calculate profile performance from stored analytics
+    const profilePerformance = profiles.map(p => ({
+      name: `${p.personalInfo?.firstName || ''} ${p.personalInfo?.lastName || ''}`.trim() || p.slug || 'Untitled',
+      views: p.analytics?.views || 0
+    })).sort((a, b) => b.views - a.views).slice(0, 5);
+
+    // Calculate engagement metrics as percentages
+    const totalProfileViews = profiles.reduce((sum, p) => sum + (p.analytics?.views || 0), 0) || 1;
+    const clickThroughRate = Math.min(((totalClicks / totalProfileViews) * 100), 100).toFixed(1);
+    const contactSaveRate = Math.min(((contactDownloads / totalProfileViews) * 100), 100).toFixed(1);
+    const socialClickRate = Math.min(((socialClicks / totalProfileViews) * 100), 100).toFixed(1);
+    const qrScanRate = Math.min(((qrScans / totalProfileViews) * 100), 100).toFixed(1);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        viewsTrend: {
+          labels,
+          views: viewsPerDay,
+          taps: tapsPerDay
+        },
+        deviceBreakdown: deviceCounts,
+        profilePerformance,
+        engagementMetrics: {
+          clickThroughRate: parseFloat(clickThroughRate),
+          contactSaves: parseFloat(contactSaveRate),
+          socialClicks: parseFloat(socialClickRate),
+          qrScans: parseFloat(qrScanRate)
+        }
+      }
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      success: false,
+      error: 'Server error'
+    });
+  }
+});
+
 module.exports = router;

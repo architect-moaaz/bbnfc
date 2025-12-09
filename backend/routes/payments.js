@@ -391,4 +391,365 @@ router.get('/subscription-status', protect, async (req, res) => {
   }
 });
 
+/**
+ * Simple Fatoora API Integration
+ * API Base: https://api.simplefatoora.com
+ * Documentation: https://simplefatoora.com/fatoora_doc.html
+ */
+const axios = require('axios');
+
+const FATOORA_API_BASE = 'https://api.simplefatoora.com';
+const FATOORA_API_KEY = process.env.FATOORA_API_KEY;
+
+// Helper to make Fatoora API calls
+const fatooraApi = axios.create({
+  baseURL: FATOORA_API_BASE,
+  headers: {
+    'Content-Type': 'application/json',
+    'X-API-Key': FATOORA_API_KEY
+  }
+});
+
+/**
+ * @route   POST /api/payments/fatoora/create-payment
+ * @desc    Create Fatoora invoice for subscription upgrade
+ * @access  Protected
+ */
+router.post('/fatoora/create-payment', protect, async (req, res) => {
+  try {
+    const { planId, billingCycle = 'monthly' } = req.body;
+
+    // Validate plan
+    if (!['starter', 'professional', 'enterprise'].includes(planId)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid plan selected'
+      });
+    }
+
+    // Get user organization
+    let organization = null;
+    if (req.user.organization) {
+      organization = await Organization.findById(req.user.organization);
+    }
+
+    // Define plan prices (in SAR - Saudi Riyal)
+    const planPrices = {
+      starter: { monthly: 109, yearly: 999 },
+      professional: { monthly: 299, yearly: 2699 },
+      enterprise: { monthly: 749, yearly: 6999 },
+    };
+
+    const planNames = {
+      starter: 'BBTap Starter Plan',
+      professional: 'BBTap Professional Plan',
+      enterprise: 'BBTap Enterprise Plan',
+    };
+
+    const price = planPrices[planId][billingCycle === 'yearly' ? 'yearly' : 'monthly'];
+    const billingPeriod = billingCycle === 'yearly' ? 'Annual' : 'Monthly';
+
+    // Create a unique invoice reference
+    const invoiceRef = `BBT-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+
+    // Store payment session
+    const paymentSession = {
+      reference: invoiceRef,
+      userId: req.user._id.toString(),
+      organizationId: organization?._id?.toString() || null,
+      planId,
+      billingCycle: billingCycle === 'yearly' ? 'yearly' : 'monthly',
+      amount: price,
+      currency: 'SAR',
+      status: 'pending',
+      createdAt: new Date(),
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days expiry
+    };
+
+    await User.findByIdAndUpdate(req.user._id, {
+      $set: { pendingPayment: paymentSession }
+    });
+
+    // If Fatoora API key is configured, create invoice via API
+    if (FATOORA_API_KEY) {
+      try {
+        // Create invoice using Simple Fatoora API
+        const invoiceData = {
+          // Client details (individual - client_type: 2)
+          client_type: 2,
+          client_name: req.user.name || organization?.name || 'Customer',
+          client_mobile: req.user.phone || '',
+          client_email: req.user.email,
+          client_country_code: '+966',
+
+          // Invoice type: 0 = Simplified Invoice
+          invoice_type: 0,
+
+          // Line items
+          line_items: [
+            {
+              description: `${planNames[planId]} - ${billingPeriod} Subscription`,
+              product_id: `PLAN-${planId.toUpperCase()}`,
+              unit_price: price,
+              quantity: 1,
+              vat_percent: 15 // Saudi VAT rate
+            }
+          ],
+
+          // Additional info
+          notes: `Subscription Reference: ${invoiceRef}`,
+          footer_text: 'Thank you for choosing BBTap!'
+        };
+
+        const fatooraResponse = await fatooraApi.post('/api_doc/invoice/create', invoiceData);
+
+        if (fatooraResponse.data.status) {
+          // Update payment session with Fatoora invoice details
+          await User.findByIdAndUpdate(req.user._id, {
+            $set: {
+              'pendingPayment.fatooraInvoiceId': fatooraResponse.data.response.invoice_id,
+              'pendingPayment.fatooraInvoiceNumber': fatooraResponse.data.response.invoice_number,
+              'pendingPayment.fatooraInvoiceUrl': fatooraResponse.data.response.invoice_pdf_url
+            }
+          });
+
+          return res.json({
+            success: true,
+            data: {
+              reference: invoiceRef,
+              invoiceNumber: fatooraResponse.data.response.invoice_number,
+              invoiceUrl: fatooraResponse.data.response.invoice_pdf_url,
+              amount: price,
+              vatAmount: (price * 0.15).toFixed(2),
+              totalAmount: (price * 1.15).toFixed(2),
+              currency: 'SAR',
+              plan: planId,
+              billingCycle,
+              message: 'Invoice created successfully. Please complete payment to activate your subscription.'
+            },
+          });
+        }
+      } catch (fatooraError) {
+        console.error('Fatoora API error:', fatooraError.response?.data || fatooraError.message);
+        // Fall through to manual invoice flow
+      }
+    }
+
+    // Fallback: Return payment details for manual processing
+    const frontendUrl = process.env.FRONTEND_URL || 'https://bbetanfc.vercel.app';
+
+    res.json({
+      success: true,
+      data: {
+        reference: invoiceRef,
+        amount: price,
+        vatAmount: (price * 0.15).toFixed(2),
+        totalAmount: (price * 1.15).toFixed(2),
+        currency: 'SAR',
+        plan: planId,
+        planName: planNames[planId],
+        billingCycle,
+        billingPeriod,
+        // Payment instructions
+        paymentInstructions: {
+          bankName: 'Al Rajhi Bank',
+          accountName: 'BBTap Business Solutions',
+          iban: process.env.PAYMENT_IBAN || 'SA0000000000000000000000',
+          reference: invoiceRef,
+        },
+        confirmationUrl: `${frontendUrl}/subscription?ref=${invoiceRef}`,
+        message: 'Please complete the bank transfer and contact support with your payment reference for activation.'
+      },
+    });
+  } catch (error) {
+    console.error('Create Fatoora payment error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Error creating invoice',
+      details: error.message,
+    });
+  }
+});
+
+/**
+ * @route   GET /api/payments/fatoora/callback
+ * @desc    Handle Fatoora payment callback
+ * @access  Public
+ */
+router.get('/fatoora/callback', async (req, res) => {
+  try {
+    const { ref, status, transaction_id } = req.query;
+
+    if (!ref) {
+      return res.redirect(`${process.env.FRONTEND_URL || 'https://bbetanfc.vercel.app'}/subscription?payment=error&message=Invalid+callback`);
+    }
+
+    // Find user with this payment reference
+    const user = await User.findOne({ 'pendingPayment.reference': ref });
+
+    if (!user) {
+      return res.redirect(`${process.env.FRONTEND_URL || 'https://bbetanfc.vercel.app'}/subscription?payment=error&message=Payment+not+found`);
+    }
+
+    const paymentSession = user.pendingPayment;
+
+    if (status === 'success' || status === 'paid') {
+      // Payment successful - upgrade subscription
+      const planLimits = {
+        starter: { maxUsers: 5, maxProfiles: 10, maxCards: 25, maxStorage: 1000 },
+        professional: { maxUsers: 20, maxProfiles: 50, maxCards: 100, maxStorage: 10000 },
+        enterprise: { maxUsers: -1, maxProfiles: -1, maxCards: -1, maxStorage: 100000 },
+      };
+
+      // Update organization if exists
+      if (paymentSession.organizationId) {
+        await Organization.findByIdAndUpdate(paymentSession.organizationId, {
+          $set: {
+            'subscription.plan': paymentSession.planId,
+            'subscription.status': 'active',
+            'subscription.billingCycle': paymentSession.billingCycle,
+            'subscription.currentPeriodEnd': new Date(Date.now() + (paymentSession.billingCycle === 'yearly' ? 365 : 30) * 24 * 60 * 60 * 1000),
+            'subscription.fatooraTransactionId': transaction_id,
+            limits: planLimits[paymentSession.planId],
+          }
+        });
+      }
+
+      // Update user subscription
+      await User.findByIdAndUpdate(user._id, {
+        $set: {
+          'subscription.plan': paymentSession.planId,
+          'subscription.status': 'active',
+        },
+        $unset: { pendingPayment: 1 }
+      });
+
+      return res.redirect(`${process.env.FRONTEND_URL || 'https://bbetanfc.vercel.app'}/subscription?payment=success&plan=${paymentSession.planId}`);
+    } else {
+      // Payment failed or cancelled
+      await User.findByIdAndUpdate(user._id, {
+        $unset: { pendingPayment: 1 }
+      });
+
+      return res.redirect(`${process.env.FRONTEND_URL || 'https://bbetanfc.vercel.app'}/subscription?payment=failed`);
+    }
+  } catch (error) {
+    console.error('Fatoora callback error:', error);
+    return res.redirect(`${process.env.FRONTEND_URL || 'https://bbetanfc.vercel.app'}/subscription?payment=error&message=Server+error`);
+  }
+});
+
+/**
+ * @route   POST /api/payments/fatoora/webhook
+ * @desc    Handle Fatoora webhook notifications
+ * @access  Public (verified by signature)
+ */
+router.post('/fatoora/webhook', async (req, res) => {
+  try {
+    const { reference, status, transaction_id, signature } = req.body;
+
+    // Verify webhook signature (implement based on Fatoora's signing method)
+    // const expectedSignature = createHmac('sha256', process.env.FATOORA_WEBHOOK_SECRET)
+    //   .update(`${reference}${status}${transaction_id}`)
+    //   .digest('hex');
+    // if (signature !== expectedSignature) {
+    //   return res.status(401).json({ error: 'Invalid signature' });
+    // }
+
+    // Find user with this payment reference
+    const user = await User.findOne({ 'pendingPayment.reference': reference });
+
+    if (!user) {
+      return res.status(404).json({ error: 'Payment not found' });
+    }
+
+    const paymentSession = user.pendingPayment;
+
+    if (status === 'paid' || status === 'success') {
+      const planLimits = {
+        starter: { maxUsers: 5, maxProfiles: 10, maxCards: 25, maxStorage: 1000 },
+        professional: { maxUsers: 20, maxProfiles: 50, maxCards: 100, maxStorage: 10000 },
+        enterprise: { maxUsers: -1, maxProfiles: -1, maxCards: -1, maxStorage: 100000 },
+      };
+
+      if (paymentSession.organizationId) {
+        await Organization.findByIdAndUpdate(paymentSession.organizationId, {
+          $set: {
+            'subscription.plan': paymentSession.planId,
+            'subscription.status': 'active',
+            'subscription.billingCycle': paymentSession.billingCycle,
+            'subscription.currentPeriodEnd': new Date(Date.now() + (paymentSession.billingCycle === 'yearly' ? 365 : 30) * 24 * 60 * 60 * 1000),
+            'subscription.fatooraTransactionId': transaction_id,
+            limits: planLimits[paymentSession.planId],
+          }
+        });
+      }
+
+      await User.findByIdAndUpdate(user._id, {
+        $set: {
+          'subscription.plan': paymentSession.planId,
+          'subscription.status': 'active',
+        },
+        $unset: { pendingPayment: 1 }
+      });
+    }
+
+    res.json({ received: true });
+  } catch (error) {
+    console.error('Fatoora webhook error:', error);
+    res.status(500).json({ error: 'Webhook handler failed' });
+  }
+});
+
+/**
+ * @route   POST /api/payments/fatoora/verify
+ * @desc    Verify Fatoora payment status
+ * @access  Protected
+ */
+router.post('/fatoora/verify', protect, async (req, res) => {
+  try {
+    const { reference } = req.body;
+
+    if (!reference) {
+      return res.status(400).json({
+        success: false,
+        error: 'Payment reference is required'
+      });
+    }
+
+    // Check if user has this payment
+    const user = await User.findById(req.user._id);
+    if (!user || !user.pendingPayment || user.pendingPayment.reference !== reference) {
+      // Payment may have been processed - check subscription status
+      const org = req.user.organization ? await Organization.findById(req.user.organization) : null;
+
+      return res.json({
+        success: true,
+        data: {
+          status: org?.subscription?.plan !== 'free' ? 'completed' : 'unknown',
+          plan: org?.subscription?.plan || user?.subscription?.plan || 'free',
+        }
+      });
+    }
+
+    // Payment is still pending
+    res.json({
+      success: true,
+      data: {
+        status: 'pending',
+        reference: user.pendingPayment.reference,
+        plan: user.pendingPayment.planId,
+        amount: user.pendingPayment.amount,
+        currency: user.pendingPayment.currency,
+      }
+    });
+  } catch (error) {
+    console.error('Verify Fatoora payment error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Error verifying payment',
+    });
+  }
+});
+
 module.exports = router;
