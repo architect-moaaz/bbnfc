@@ -5,8 +5,7 @@ const claimTokenSchema = new mongoose.Schema({
   token: {
     type: String,
     required: true,
-    unique: true,
-    index: true
+    unique: true
   },
   tokenHash: {
     type: String,
@@ -125,9 +124,7 @@ const claimTokenSchema = new mongoose.Schema({
   revocationReason: String
 });
 
-// Indexes
-claimTokenSchema.index({ token: 1 });
-claimTokenSchema.index({ tokenHash: 1 });
+// Indexes (token and tokenHash already have unique: true which creates an index)
 claimTokenSchema.index({ organization: 1, status: 1 });
 claimTokenSchema.index({ status: 1, expiresAt: 1 });
 claimTokenSchema.index({ 'assignedTo.email': 1 });

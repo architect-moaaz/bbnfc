@@ -312,9 +312,7 @@ const organizationSchema = new mongoose.Schema({
   suspensionReason: String
 });
 
-// Indexes
-organizationSchema.index({ slug: 1 });
-organizationSchema.index({ subdomain: 1 });
+// Indexes (slug and subdomain already have unique: true which creates an index)
 organizationSchema.index({ owner: 1 });
 organizationSchema.index({ status: 1 });
 organizationSchema.index({ plan: 1 });
