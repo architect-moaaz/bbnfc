@@ -316,47 +316,54 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
         sx={{ width: { md: collapsed ? collapsedDrawerWidth : drawerWidth }, flexShrink: { md: 0 } }}
       >
         {/* Mobile drawer */}
-        <Drawer
-          variant="temporary"
-          open={mobileOpen}
-          onClose={handleDrawerToggle}
-          ModalProps={{
-            keepMounted: true, // Better open performance on mobile.
-          }}
-          sx={{
-            display: { xs: 'block', md: 'none' },
-            '& .MuiDrawer-paper': {
-              boxSizing: 'border-box',
-              width: drawerWidth,
-              borderRight: `1px solid ${theme.palette.divider}`,
-            },
-          }}
-        >
-          {drawer}
-        </Drawer>
+        {isMobile && (
+          <Drawer
+            variant="temporary"
+            open={mobileOpen}
+            onClose={handleDrawerToggle}
+            ModalProps={{
+              keepMounted: true, // Better open performance on mobile.
+            }}
+            sx={{
+              zIndex: theme.zIndex.drawer + 2,
+              '& .MuiDrawer-paper': {
+                boxSizing: 'border-box',
+                width: drawerWidth,
+                borderRight: `1px solid ${theme.palette.divider}`,
+                zIndex: theme.zIndex.drawer + 2,
+              },
+              '& .MuiBackdrop-root': {
+                zIndex: theme.zIndex.drawer + 1,
+              },
+            }}
+          >
+            {drawer}
+          </Drawer>
+        )}
         
         {/* Desktop drawer */}
-        <Drawer
-          ref={sidebarRef}
-          variant="permanent"
-          sx={{
-            display: { xs: 'none', md: 'block' },
-            '& .MuiDrawer-paper': {
-              boxSizing: 'border-box',
-              width: collapsed ? collapsedDrawerWidth : drawerWidth,
-              borderRight: `1px solid ${theme.palette.divider}`,
-              position: 'relative',
-              transition: theme.transitions.create('width', {
-                easing: theme.transitions.easing.sharp,
-                duration: theme.transitions.duration.enteringScreen,
-              }),
-            },
-          }}
-          onMouseEnter={handleSidebarMouseEnter}
-          open
-        >
-          {drawer}
-        </Drawer>
+        {!isMobile && (
+          <Drawer
+            ref={sidebarRef}
+            variant="permanent"
+            sx={{
+              '& .MuiDrawer-paper': {
+                boxSizing: 'border-box',
+                width: collapsed ? collapsedDrawerWidth : drawerWidth,
+                borderRight: `1px solid ${theme.palette.divider}`,
+                position: 'relative',
+                transition: theme.transitions.create('width', {
+                  easing: theme.transitions.easing.sharp,
+                  duration: theme.transitions.duration.enteringScreen,
+                }),
+              },
+            }}
+            onMouseEnter={handleSidebarMouseEnter}
+            open
+          >
+            {drawer}
+          </Drawer>
+        )}
       </Box>
 
       {/* Main Content */}
