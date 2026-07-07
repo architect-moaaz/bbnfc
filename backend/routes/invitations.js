@@ -256,11 +256,13 @@ router.post('/:token/accept',
         });
       }
 
-      // Update user with organization
-      req.user.organization = claimToken.organization._id;
-      req.user.role = 'org_admin'; // Default role for invited users
-      req.user.organizationRole = claimToken.metadata?.invitedRole || 'member';
-      await req.user.save();
+      // Update user with organization. req.user is a native-driver document
+      // (no Mongoose .save()), so persist via the model instead.
+      await User.findByIdAndUpdate(req.user._id, {
+        organization: claimToken.organization._id,
+        role: 'org_admin', // Default role for invited users
+        organizationRole: claimToken.metadata?.invitedRole || 'member'
+      });
 
       // Mark token as claimed
       claimToken.status = 'claimed';

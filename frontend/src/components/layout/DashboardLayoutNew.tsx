@@ -310,6 +310,7 @@ const DashboardLayoutNew: React.FC<DashboardLayoutNewProps> = ({ children }) => 
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             <Box
               component="button"
+              onClick={() => window.open('mailto:support@bbtap.me?subject=BBTap%20Support%20Request', '_blank')}
               sx={{
                 display: 'flex',
                 alignItems: 'center',

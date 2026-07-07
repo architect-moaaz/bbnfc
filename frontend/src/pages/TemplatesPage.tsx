@@ -103,7 +103,7 @@ const TemplatesPage: React.FC = () => {
   };
 
   const handleUseTemplate = (template: Template) => {
-    navigate('/profiles/create', { state: { selectedTemplate: template } });
+    navigate('/profiles/new', { state: { selectedTemplate: template } });
   };
 
   const handlePreviewTemplate = (template: Template) => {

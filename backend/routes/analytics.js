@@ -188,7 +188,7 @@ router.get('/dashboard', protect, async (req, res) => {
       totalProfiles,
       totalViews,
       totalTaps,
-      totalShares: profiles.reduce((sum, p) => sum + (p.analytics?.shares || 0), 0)
+      totalShares: profiles.reduce((sum, p) => sum + (p.analytics?.contactDownloads || 0), 0)
     };
 
     res.status(200).json({

@@ -76,6 +76,7 @@ const ProfilesPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<FilterType>('all');
+  const [filterAnchorEl, setFilterAnchorEl] = useState<null | HTMLElement>(null);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [selectedProfile, setSelectedProfile] = useState<DisplayProfile | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -325,11 +326,27 @@ const ProfilesPage: React.FC = () => {
         <Button
           variant="outlined"
           startIcon={<FilterIcon />}
-          onClick={() => {/* Filter menu implementation */}}
+          onClick={(e) => setFilterAnchorEl(e.currentTarget)}
           sx={{ minWidth: 120 }}
         >
           {filterStatus === 'all' ? 'All' : getStatusLabel(filterStatus as ProfileStatus)}
         </Button>
+        <Menu
+          anchorEl={filterAnchorEl}
+          open={Boolean(filterAnchorEl)}
+          onClose={() => setFilterAnchorEl(null)}
+        >
+          {(['all', 'active', 'draft', 'archived'] as FilterType[]).map((status) => (
+            <MenuItem
+              key={status}
+              selected={filterStatus === status}
+              onClick={() => { setFilterStatus(status); setFilterAnchorEl(null); }}
+              sx={{ textTransform: 'capitalize', minWidth: 140 }}
+            >
+              {status === 'all' ? 'All Profiles' : status}
+            </MenuItem>
+          ))}
+        </Menu>
       </Box>
 
       {/* Stats Cards */}

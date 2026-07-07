@@ -101,6 +101,36 @@ userSchema.methods.matchPassword = async function(enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
 
+// True if the user administers an organization (or is a platform admin).
+userSchema.methods.isOrgAdmin = function() {
+  return (
+    this.role === 'org_admin' ||
+    this.role === 'admin' ||
+    this.role === 'super_admin' ||
+    this.organizationRole === 'admin' ||
+    this.organizationRole === 'owner'
+  );
+};
+
+// Coarse role-based permission check used by the permission middleware.
+userSchema.methods.hasPermission = function(permission) {
+  if (this.role === 'super_admin' || this.role === 'admin') return true;
+  const orgAdminPermissions = [
+    'manage_cards', 'view_cards', 'manage_profiles', 'view_profiles',
+    'manage_users', 'view_users', 'view_analytics', 'manage_organization',
+    'manage_templates', 'manage_invitations'
+  ];
+  if (this.isOrgAdmin() && orgAdminPermissions.includes(permission)) return true;
+  // Members can act on their own resources
+  const memberPermissions = ['view_profiles', 'view_cards', 'view_analytics'];
+  return memberPermissions.includes(permission);
+};
+
+// Account lock check (optional accountLockedUntil field).
+userSchema.methods.isAccountLocked = function() {
+  return !!(this.accountLockedUntil && this.accountLockedUntil > Date.now());
+};
+
 // Generate and hash password token
 userSchema.methods.getResetPasswordToken = function() {
   const resetToken = crypto.randomBytes(20).toString('hex');

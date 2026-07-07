@@ -149,17 +149,25 @@ claimTokenSchema.statics.generateToken = function() {
   return { token, tokenHash };
 };
 
-// Static method to create claim link
+// Static method to create claim link. Accepts `expiresInDays` (converted to
+// expiresAt) and returns the created document (its `token` field holds the
+// plaintext token for building the claim URL).
 claimTokenSchema.statics.createClaimToken = async function(data) {
   const { token, tokenHash } = this.generateToken();
+  const { expiresInDays, ...rest } = data;
+
+  const expiresAt =
+    rest.expiresAt ||
+    new Date(Date.now() + (expiresInDays || 7) * 24 * 60 * 60 * 1000);
 
   const claimToken = await this.create({
     token,
     tokenHash,
-    ...data
+    ...rest,
+    expiresAt
   });
 
-  return { claimToken, plainToken: token };
+  return claimToken;
 };
 
 // Method to generate claim URL

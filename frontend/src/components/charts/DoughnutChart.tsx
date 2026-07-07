@@ -64,8 +64,8 @@ const DoughnutChart: React.FC<DoughnutChartProps> = ({
                 const dataset = data.datasets[0];
                 const value = dataset.data[i];
                 const total = dataset.data.reduce((a: number, b: number) => a + b, 0);
-                const percentage = ((value / total) * 100).toFixed(1);
-                
+                const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : '0.0';
+
                 return {
                   text: `${label}: ${percentage}%`,
                   fillStyle: dataset.backgroundColor[i],
@@ -108,7 +108,7 @@ const DoughnutChart: React.FC<DoughnutChartProps> = ({
             const value = context.parsed;
             const dataset = context.dataset.data;
             const total = dataset.reduce((a: number, b: number) => a + b, 0);
-            const percentage = ((value / total) * 100).toFixed(1);
+            const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : '0.0';
             return `${label}: ${value} (${percentage}%)`;
           },
         },

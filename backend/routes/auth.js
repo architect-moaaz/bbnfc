@@ -153,7 +153,8 @@ router.post('/login', validateLogin, async (req, res) => {
 // Get current logged in user
 router.get('/me', protect, async (req, res) => {
   try {
-    const user = await userOperations.findById(req.user.id);
+    // req.user is a native-driver document (has _id, not id)
+    const user = await userOperations.findById(req.user._id);
     
     if (!user) {
       return res.status(404).json({
@@ -320,7 +321,7 @@ router.get('/verifyemail/:token', async (req, res) => {
 // Update password
 router.put('/updatepassword', protect, async (req, res) => {
   try {
-    const user = await userOperations.findById(req.user.id);
+    const user = await userOperations.findById(req.user._id);
     
     if (!user) {
       return res.status(404).json({

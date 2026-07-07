@@ -42,7 +42,11 @@ const GoogleMapsPicker: React.FC<GoogleMapsPickerProps> = ({
 
   // Geocode address to get coordinates
   const geocodeAddress = useCallback(async () => {
-    if (!address || !window.google) return;
+    // Only attempt geocoding when the Maps SDK is actually loaded with a valid
+    // API key. With a missing/dummy key the script loads a partial `google.maps`
+    // object where `Geocoder` is not a constructor, which would throw at runtime.
+    if (!hasValidApiKey || !isLoaded) return;
+    if (!address || typeof window.google?.maps?.Geocoder !== 'function') return;
 
     const fullAddress = [
       address.street,
@@ -78,7 +82,7 @@ const GoogleMapsPicker: React.FC<GoogleMapsPickerProps> = ({
     } finally {
       setIsGeocoding(false);
     }
-  }, [address, onLocationChange]);
+  }, [address, onLocationChange, hasValidApiKey, isLoaded]);
 
   // Load saved coordinates or geocode address
   useEffect(() => {

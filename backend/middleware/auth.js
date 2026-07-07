@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const User = require('../models/User');
 const { userOperations } = require('../utils/dbOperations');
 
 // Protect routes
@@ -18,8 +19,10 @@ exports.protect = async (req, res, next) => {
   
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = await userOperations.findById(decoded.id);
-    
+    // Hydrate as a Mongoose document so req.user has schema instance methods
+    // (isOrgAdmin, hasPermission, .save(), etc.) that many routes rely on.
+    req.user = await User.findById(decoded.id);
+
     if (!req.user) {
       return res.status(401).json({
         success: false,

@@ -1,19 +1,31 @@
 const mongoose = require('mongoose');
+const crypto = require('crypto');
 
 const analyticsSchema = new mongoose.Schema({
+  organization: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Organization',
+    default: null,
+    index: true
+  },
   profile: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Profile',
-    required: true
+    default: null // optional: card-only events have no profile
+  },
+  card: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Card',
+    default: null
   },
   user: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true
+    default: null
   },
   eventType: {
     type: String,
-    enum: ['view', 'tap', 'click', 'download', 'share', 'form_submit'],
+    enum: ['view', 'tap', 'scan', 'click', 'link_click', 'download', 'share', 'form_submit'],
     required: true
   },
   eventData: {
@@ -28,6 +40,7 @@ const analyticsSchema = new mongoose.Schema({
   },
   visitor: {
     sessionId: String,
+    ipHash: String, // hashed IP for privacy-preserving unique-visitor counts
     ipAddress: String,
     userAgent: String,
     browser: String,
@@ -61,8 +74,29 @@ const analyticsSchema = new mongoose.Schema({
     type: Date,
     default: Date.now
   },
-  duration: Number // for session tracking
+  duration: Number, // for session tracking
+  date: { type: String, index: true }, // YYYY-MM-DD for daily grouping
+  utm: {
+    source: String,
+    medium: String,
+    campaign: String,
+    content: String,
+    term: String
+  },
+  session: {
+    id: String,
+    duration: Number
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now
+  },
+  expiresAt: { type: Date, default: null } // TTL: auto-purge per retention policy
 });
+
+// TTL index: documents are removed once expiresAt passes (retention policy)
+analyticsSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+analyticsSchema.index({ organization: 1, timestamp: -1 });
 
 // Indexes for efficient querying
 analyticsSchema.index({ profile: 1, timestamp: -1 });
@@ -222,6 +256,143 @@ analyticsSchema.statics.getTimeSeries = async function(profileId, timeRange, eve
     },
     { $sort: { _id: 1 } }
   ]);
+};
+
+const toId = (id) => (id instanceof mongoose.Types.ObjectId ? id : new mongoose.Types.ObjectId(id));
+
+// Create an analytics event (hashes IP, stamps date, applies retention TTL).
+analyticsSchema.statics.createEvent = async function(data, retentionDays = 90) {
+  const doc = { ...data };
+  if (data.visitor && data.visitor.ipAddress) {
+    doc.visitor = {
+      ...data.visitor,
+      ipHash: crypto.createHash('sha256').update(String(data.visitor.ipAddress)).digest('hex')
+    };
+  }
+  const now = new Date();
+  doc.date = now.toISOString().split('T')[0];
+  doc.createdAt = now;
+  doc.expiresAt = new Date(now.getTime() + retentionDays * 24 * 60 * 60 * 1000);
+  return this.create(doc);
+};
+
+// Link/click breakdown for a profile.
+analyticsSchema.statics.getLinkAnalytics = async function(profileId, { start, end } = {}) {
+  const match = { profile: toId(profileId), eventType: { $in: ['click', 'link_click'] } };
+  if (start || end) match.timestamp = { ...(start && { $gte: start }), ...(end && { $lte: end }) };
+  const rows = await this.aggregate([
+    { $match: match },
+    { $group: { _id: { $ifNull: ['$eventData.elementClicked', 'unknown'] }, count: { $sum: 1 } } },
+    { $sort: { count: -1 } }
+  ]);
+  return rows.map((r) => ({ link: r._id, count: r.count }));
+};
+
+// Geographic breakdown for a profile.
+analyticsSchema.statics.getGeographicAnalytics = async function(profileId) {
+  const rows = await this.aggregate([
+    { $match: { profile: toId(profileId) } },
+    { $group: { _id: { $ifNull: ['$location.country', 'Unknown'] }, count: { $sum: 1 } } },
+    { $sort: { count: -1 } }
+  ]);
+  return rows.map((r) => ({ country: r._id, count: r.count }));
+};
+
+// Device breakdown for a profile.
+analyticsSchema.statics.getDeviceAnalytics = async function(profileId) {
+  const rows = await this.aggregate([
+    { $match: { profile: toId(profileId) } },
+    { $group: { _id: { $ifNull: ['$visitor.device.type', 'unknown'] }, count: { $sum: 1 } } }
+  ]);
+  const result = { mobile: 0, tablet: 0, desktop: 0, other: 0, unknown: 0 };
+  rows.forEach((r) => { result[r._id] = (result[r._id] || 0) + r.count; });
+  return result;
+};
+
+// Time-of-day / day-of-week breakdown for a profile.
+analyticsSchema.statics.getTimeAnalytics = async function(profileId) {
+  const byHour = await this.aggregate([
+    { $match: { profile: toId(profileId) } },
+    { $group: { _id: { $hour: '$timestamp' }, count: { $sum: 1 } } },
+    { $sort: { _id: 1 } }
+  ]);
+  const byDayOfWeek = await this.aggregate([
+    { $match: { profile: toId(profileId) } },
+    { $group: { _id: { $dayOfWeek: '$timestamp' }, count: { $sum: 1 } } },
+    { $sort: { _id: 1 } }
+  ]);
+  return {
+    byHour: byHour.map((r) => ({ hour: r._id, count: r.count })),
+    byDayOfWeek: byDayOfWeek.map((r) => ({ day: r._id, count: r.count }))
+  };
+};
+
+// Organization-wide analytics summary.
+analyticsSchema.statics.getOrgAnalytics = async function(orgId, { startDate, endDate } = {}) {
+  const match = { organization: toId(orgId) };
+  if (startDate || endDate) match.timestamp = { ...(startDate && { $gte: startDate }), ...(endDate && { $lte: endDate }) };
+  const rows = await this.aggregate([
+    { $match: match },
+    {
+      $group: {
+        _id: '$eventType',
+        count: { $sum: 1 },
+        visitors: { $addToSet: '$visitor.ipHash' }
+      }
+    }
+  ]);
+  const eventBreakdown = {};
+  const uniqueSet = new Set();
+  let totalEvents = 0;
+  rows.forEach((r) => {
+    eventBreakdown[r._id] = r.count;
+    totalEvents += r.count;
+    (r.visitors || []).forEach((v) => v && uniqueSet.add(v));
+  });
+  return { totalEvents, eventBreakdown, uniqueVisitors: uniqueSet.size };
+};
+
+// UTM campaign breakdown for an organization.
+analyticsSchema.statics.getUTMAnalytics = async function(orgId, { start, end } = {}) {
+  const match = { organization: toId(orgId), 'utm.source': { $ne: null } };
+  if (start || end) match.timestamp = { ...(start && { $gte: start }), ...(end && { $lte: end }) };
+  const rows = await this.aggregate([
+    { $match: match },
+    {
+      $group: {
+        _id: { source: '$utm.source', medium: '$utm.medium', campaign: '$utm.campaign' },
+        count: { $sum: 1 }
+      }
+    },
+    { $sort: { count: -1 } }
+  ]);
+  return rows.map((r) => ({
+    source: r._id.source, medium: r._id.medium, campaign: r._id.campaign, count: r.count
+  }));
+};
+
+// CSV export of raw events for an organization.
+analyticsSchema.statics.exportToCSV = async function(orgId, { startDate, endDate } = {}) {
+  const query = { organization: toId(orgId) };
+  if (startDate || endDate) query.timestamp = { ...(startDate && { $gte: startDate }), ...(endDate && { $lte: endDate }) };
+  const events = await this.find(query).sort('-timestamp').limit(50000).lean();
+  const headers = ['timestamp', 'eventType', 'profile', 'card', 'country', 'city', 'device', 'utmSource', 'utmCampaign'];
+  const esc = (v) => `"${String(v == null ? '' : v).replace(/"/g, '""')}"`;
+  const lines = [headers.join(',')];
+  for (const e of events) {
+    lines.push([
+      e.timestamp && e.timestamp.toISOString(),
+      e.eventType,
+      e.profile,
+      e.card,
+      e.location && e.location.country,
+      e.location && e.location.city,
+      e.visitor && e.visitor.device && e.visitor.device.type,
+      e.utm && e.utm.source,
+      e.utm && e.utm.campaign
+    ].map(esc).join(','));
+  }
+  return lines.join('\n');
 };
 
 module.exports = mongoose.model('Analytics', analyticsSchema);

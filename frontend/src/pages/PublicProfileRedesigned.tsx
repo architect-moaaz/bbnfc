@@ -44,6 +44,7 @@ import LocationMap from '../components/LocationMap';
 import ActionButton from '../components/ui/ActionButton';
 import ContactActionIcon from '../components/ui/ContactActionIcon';
 import TemplateRenderer from '../components/TemplateRenderer';
+import DHLTemplate from '../components/templates/DHLTemplate';
 
 const PublicProfileRedesigned: React.FC = () => {
   const { profileId } = useParams();
@@ -208,6 +209,26 @@ const PublicProfileRedesigned: React.FC = () => {
   }
 
   if (!profile) return null;
+
+  // Branded, full-layout templates render their own self-contained design.
+  const templateSlug = typeof profile.template === 'object' ? profile.template?.slug : undefined;
+  if (templateSlug === 'dhl-express') {
+    return (
+      <>
+        <DHLTemplate
+          profile={profile}
+          onSaveContact={() => setSaveModalOpen(true)}
+          onTrack={trackEvent}
+        />
+        <SaveContactModal
+          open={saveModalOpen}
+          onClose={() => setSaveModalOpen(false)}
+          profile={profile}
+          profileId={profileId || ''}
+        />
+      </>
+    );
+  }
 
   const fullName = `${profile.personalInfo.firstName} ${profile.personalInfo.lastName}`;
   const profileUrl = window.location.href;

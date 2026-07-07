@@ -68,11 +68,16 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/profiles', require('./routes/profiles'));
 app.use('/api/cards', require('./routes/cards'));
+app.use('/api/card-lifecycle', require('./routes/cardLifecycle'));
+app.use('/api/claim', require('./routes/claim'));
+app.use('/api/profiles-v2', require('./routes/profilesEnhanced'));
+app.use('/api/analytics-v2', require('./routes/analyticsEnhanced'));
 app.use('/api/analytics', require('./routes/analytics'));
 app.use('/api/templates', require('./routes/templates'));
 app.use('/api/subscriptions', require('./routes/subscriptions'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/upload', require('./routes/upload'));
+app.use('/api/organizations', require('./routes/organizations'));
 app.use('/api/invitations', require('./routes/invitations'));
 app.use('/api/payments', require('./routes/payments'));
 

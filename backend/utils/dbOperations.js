@@ -50,6 +50,8 @@ const userOperations = {
       passwordResetToken: null,
       passwordResetExpire: null,
       role: 'user',
+      organization: null,
+      organizationRole: 'member',
       subscription: null,
       twoFactorEnabled: false,
       twoFactorSecret: null,
@@ -129,7 +131,7 @@ const subscriptionOperations = {
       plan: subscriptionData.plan || 'free',
       features: subscriptionData.features || {
         maxProfiles: 1,
-        maxCardsPerProfile: 1,
+        maxCards: 1,
         analytics: false,
         customDomain: false,
         teamMembers: 0,
@@ -191,7 +193,7 @@ const subscriptionOperations = {
         price: 0,
         features: {
           maxProfiles: 1,
-          maxCardsPerProfile: 1,
+          maxCards: 1,
           analytics: false,
           customDomain: false,
           teamMembers: 0,
@@ -204,7 +206,7 @@ const subscriptionOperations = {
         price: 9.99,
         features: {
           maxProfiles: 3,
-          maxCardsPerProfile: 5,
+          maxCards: 5,
           analytics: true,
           customDomain: false,
           teamMembers: 0,
@@ -217,7 +219,7 @@ const subscriptionOperations = {
         price: 19.99,
         features: {
           maxProfiles: 5,
-          maxCardsPerProfile: 10,
+          maxCards: 10,
           analytics: true,
           customDomain: true,
           teamMembers: 5,
@@ -230,7 +232,7 @@ const subscriptionOperations = {
         price: 49.99,
         features: {
           maxProfiles: -1, // unlimited
-          maxCardsPerProfile: -1, // unlimited
+          maxCards: -1, // unlimited
           analytics: true,
           customDomain: true,
           teamMembers: -1, // unlimited
@@ -266,8 +268,8 @@ const profileOperations = {
       analytics: profileData.analytics || {
         views: 0,
         uniqueViews: 0,
-        clicks: 0,
-        shares: 0
+        cardTaps: 0,
+        contactDownloads: 0
       },
       isActive: profileData.isActive !== undefined ? profileData.isActive : true,
       qrCode: profileData.qrCode || null,
@@ -521,16 +523,33 @@ const analyticsOperations = {
 
 // Card operations
 const cardOperations = {
+  // Generate a unique 8-char cardId. The Mongoose Card model does this in a
+  // pre('save') hook, but the native driver bypasses that hook, so we must
+  // generate it here — otherwise every insert defaults cardId to null and
+  // collides on the unique (non-sparse) `cardId` index (E11000).
+  async generateUniqueCardId(db) {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      let cardId = '';
+      for (let i = 0; i < 8; i++) {
+        cardId += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      const exists = await db.collection('cards').findOne({ cardId });
+      if (!exists) return cardId;
+    }
+  },
+
   async create(cardData) {
     const db = await getDatabase();
-    
+
     const cardDoc = {
       _id: createObjectId(),
       user: new ObjectId(cardData.user),
       organization: cardData.organization ? new ObjectId(cardData.organization) : null,
       profile: new ObjectId(cardData.profile),
+      cardId: await this.generateUniqueCardId(db),
       chipType: cardData.chipType || 'NTAG213',
-      serialNumber: cardData.serialNumber,
       customUrl: cardData.customUrl,
       qrCodeUrl: cardData.qrCodeUrl,
       isActive: cardData.isActive !== undefined ? cardData.isActive : true,
@@ -540,6 +559,13 @@ const cardOperations = {
       createdAt: new Date(),
       updatedAt: new Date()
     };
+
+    // Only persist serialNumber when provided. The `serialNumber` unique index
+    // is sparse, so it ignores missing values — but an empty string ('') is NOT
+    // ignored and would collide across cards. Omit it unless truthy.
+    if (cardData.serialNumber) {
+      cardDoc.serialNumber = cardData.serialNumber;
+    }
 
     const result = await db.collection('cards').insertOne(cardDoc);
     

@@ -139,11 +139,11 @@ exports.checkCardLimit = async (req, res, next) => {
     const currentCardCount = cards.length;
 
     // Check if user has reached the limit
-    if (currentCardCount >= subscription.features.maxCardsPerProfile) {
+    if (currentCardCount >= subscription.features.maxCards) {
       return res.status(403).json({
         success: false,
         error: 'You have reached your card limit',
-        limit: subscription.features.maxCardsPerProfile,
+        limit: subscription.features.maxCards,
         current: currentCardCount,
         plan: subscription.plan
       });

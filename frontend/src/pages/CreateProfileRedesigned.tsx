@@ -40,7 +40,7 @@ import {
   Public as PublicIcon,
   LocationOn as LocationIcon,
 } from '@mui/icons-material';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { profilesAPI, uploadAPI, templatesAPI } from '../services/api';
 import { Profile, Template } from '../types';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
@@ -817,6 +817,7 @@ const MobilePreview: React.FC<MobilePreviewProps> = ({
 
 const CreateProfileRedesigned: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [loading, setLoading] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
@@ -906,6 +907,14 @@ const CreateProfileRedesigned: React.FC = () => {
     };
     loadTemplates();
   }, []);
+
+  // Preselect a template passed from the Templates page ("Use Template").
+  useEffect(() => {
+    const passed = (location.state as any)?.selectedTemplate;
+    if (passed) {
+      setSelectedTemplate(passed._id || passed.id || '');
+    }
+  }, [location.state]);
 
   const sensors = useSensors(
     useSensor(PointerSensor),

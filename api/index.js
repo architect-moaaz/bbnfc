@@ -91,6 +91,10 @@ app.use('/api/auth', require('../backend/routes/auth'));
 app.use('/api/users', require('../backend/routes/users')); // ✅ Updated to native driver
 app.use('/api/profiles', require('../backend/routes/profiles'));
 app.use('/api/cards', require('../backend/routes/cards')); // ✅ Updated to native driver
+app.use('/api/card-lifecycle', require('../backend/routes/cardLifecycle')); // Card lifecycle/assignment
+app.use('/api/claim', require('../backend/routes/claim')); // NFC card claim flow
+app.use('/api/profiles-v2', require('../backend/routes/profilesEnhanced')); // Publish, one-time links, vCard
+app.use('/api/analytics-v2', require('../backend/routes/analyticsEnhanced')); // Advanced analytics
 app.use('/api/analytics', require('../backend/routes/analytics')); // ✅ Updated to native driver
 app.use('/api/templates', require('../backend/routes/templates')); // ✅ Updated to native driver
 app.use('/api/subscriptions', require('../backend/routes/subscriptions')); // ✅ Updated to native driver

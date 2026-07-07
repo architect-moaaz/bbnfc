@@ -36,6 +36,7 @@ import {
   OpenInNew as OpenIcon,
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
 import { cardsAPI, profilesAPI } from '../services/api';
 import { Card as CardType, Profile } from '../types';
@@ -44,6 +45,7 @@ import { motion } from 'framer-motion';
 const CardsPage: React.FC = () => {
   const { enqueueSnackbar } = useSnackbar();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   
   const [selectedCard, setSelectedCard] = useState<CardType | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -480,7 +482,7 @@ const CardsPage: React.FC = () => {
                     </Tooltip>
 
                     <Tooltip title="Analytics">
-                      <IconButton disabled={isUpdating}>
+                      <IconButton onClick={() => navigate('/analytics')} disabled={isUpdating}>
                         <AnalyticsIcon />
                       </IconButton>
                     </Tooltip>
