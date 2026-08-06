@@ -192,8 +192,10 @@ const ProfilesPage: React.FC = () => {
   };
 
   const handleDeleteClick = () => {
+    // Close the menu but KEEP selectedProfile so the dialog can show the name
+    // and the confirm handler can perform the delete.
+    setAnchorEl(null);
     setDeleteDialogOpen(true);
-    handleMenuClose();
   };
 
   const handleDeleteConfirm = async () => {

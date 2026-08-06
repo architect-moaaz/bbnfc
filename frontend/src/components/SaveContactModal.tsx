@@ -47,29 +47,38 @@ const SaveContactModal: React.FC<SaveContactModalProps> = ({ open, onClose, prof
   }, [open, profileId]);
 
   const handleDownload = async () => {
+    const fileName = `${profile.personalInfo.firstName}_${profile.personalInfo.lastName}.vcf`;
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+    // Preferred path: download the .vcf served by the backend with
+    // `Content-Disposition: attachment`. This is by far the most reliable way to
+    // get Android Chrome (and iOS Safari) to offer "Add to Contacts" — client-side
+    // blob downloads and the Web Share API are unreliable for vCards on Android.
+    try {
+      const apiBase = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+      const vcardUrl = `${apiBase.replace(/\/$/, '')}/public/${encodeURIComponent(profileId)}/vcard`;
+
+      if (isMobile) {
+        // Top-level navigation triggers the OS's native contact-import flow.
+        window.location.href = vcardUrl;
+      } else {
+        const link = document.createElement('a');
+        link.href = vcardUrl;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+      return;
+    } catch (navErr) {
+      console.warn('Server vCard download failed; falling back to client generation', navErr);
+    }
+
+    // Last-resort fallback: generate the vCard client-side.
     try {
       const { profileToVCard, generateSimpleVCard } = await import('../utils/vcard');
-      const vCardData = profileToVCard(profile);
-      const vCardContent = generateSimpleVCard(vCardData);
-      const fileName = `${profile.personalInfo.firstName}_${profile.personalInfo.lastName}.vcf`;
-
+      const vCardContent = generateSimpleVCard(profileToVCard(profile));
       const blob = new Blob([vCardContent], { type: 'text/vcard;charset=utf-8' });
-
-      // Try Web Share API first (mobile)
-      if (navigator.share && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
-        const file = new File([blob], fileName, { type: 'text/vcard' });
-        try {
-          await navigator.share({
-            files: [file],
-            title: `${profile.personalInfo.firstName} ${profile.personalInfo.lastName}`,
-          });
-          return;
-        } catch (err) {
-          console.log('Share API failed, falling back to download');
-        }
-      }
-
-      // Fallback to download
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -77,7 +86,8 @@ const SaveContactModal: React.FC<SaveContactModalProps> = ({ open, onClose, prof
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
+      // Defer the revoke so mobile browsers don't cancel the in-flight download.
+      setTimeout(() => window.URL.revokeObjectURL(url), 4000);
     } catch (error) {
       console.error('Failed to save contact:', error);
       alert('Unable to save contact. Please try again.');

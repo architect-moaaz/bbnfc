@@ -10,6 +10,7 @@ import {
   Paper,
   Divider,
   Tooltip,
+  Menu,
   MenuItem,
   Switch,
   FormControlLabel,
@@ -23,6 +24,7 @@ import {
   Email as EmailIcon,
   WhatsApp as WhatsAppIcon,
   Language as WebsiteIcon,
+  Link as LinkIcon,
   Description as FileIcon,
   LinkedIn as LinkedInIcon,
   Twitter as TwitterIcon,
@@ -871,13 +873,14 @@ const EditProfileRedesigned: React.FC = () => {
     },
   });
 
-  const [contactActions, setContactActions] = useState([
-    { id: 'phone', icon: <PhoneIcon />, label: '', type: 'Mobile Call', isPrimary: true },
-    { id: 'email', icon: <EmailIcon />, label: '', type: 'Primary Email', isPrimary: true },
-    { id: 'website', icon: <WebsiteIcon />, label: '', type: 'Website', isPrimary: true },
+  const [contactActions, setContactActions] = useState<any[]>([
+    { id: 'phone', icon: <PhoneIcon />, label: '', type: 'Mobile Call', platform: 'phone', isPrimary: true },
+    { id: 'email', icon: <EmailIcon />, label: '', type: 'Primary Email', platform: 'email', isPrimary: true },
+    { id: 'website', icon: <WebsiteIcon />, label: '', type: 'Website', platform: 'website', isPrimary: true },
   ]);
 
   const [customLinks, setCustomLinks] = useState<any[]>([]);
+  const [addMenuAnchor, setAddMenuAnchor] = useState<null | HTMLElement>(null);
   const [uploadingFile, setUploadingFile] = useState<string | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<string>('');
@@ -1006,10 +1009,28 @@ const EditProfileRedesigned: React.FC = () => {
     try {
       setLoading(true);
 
-      // Extract contact information from contact actions
-      const phoneAction = contactActions.find((a) => a.type.includes('Call'));
-      const emailAction = contactActions.find((a) => a.type.includes('Email'));
-      const websiteAction = contactActions.find((a) => a.type.includes('Website'));
+      // Primary contact fields (the three built-in rows).
+      const phoneAction = contactActions.find((a) => a.id === 'phone');
+      const emailAction = contactActions.find((a) => a.id === 'email');
+      const websiteAction = contactActions.find((a) => a.id === 'website');
+
+      // Additional contact actions (extra phones, emails, links, etc.) are
+      // persisted as custom links so they aren't lost and still render.
+      const extraActions = contactActions.filter(
+        (a) => !['phone', 'email', 'website'].includes(a.id) && (a.label || '').trim()
+      );
+      const extraCustom = extraActions.map((a) => ({
+        platform: a.platform || (a.type || 'link').toLowerCase(),
+        url: (a.label || '').trim(),
+        icon: a.platform || 'link',
+      }));
+      const seenCustom = new Set<string>();
+      const mergedCustom = [...customLinks, ...extraCustom].filter((l: any) => {
+        const key = `${l.platform || ''}|${l.url || ''}`;
+        if (!l.url || seenCustom.has(key)) return false;
+        seenCustom.add(key);
+        return true;
+      });
 
       const profileData = {
         personalInfo: {
@@ -1034,7 +1055,7 @@ const EditProfileRedesigned: React.FC = () => {
           youtube: profile.socialLinks?.youtube || '',
           github: profile.socialLinks?.github || '',
           tiktok: profile.socialLinks?.tiktok || '',
-          custom: customLinks,
+          custom: mergedCustom,
         },
         businessHours: profile.businessHours || [],
         customization: {
@@ -1066,12 +1087,21 @@ const EditProfileRedesigned: React.FC = () => {
     }
   };
 
-  const addContactAction = () => {
-    const newId = String(Date.now());
+  const CONTACT_ACTION_KINDS: Record<string, { type: string; platform: string; icon: React.ReactNode }> = {
+    phone: { type: 'Phone', platform: 'phone', icon: <PhoneIcon /> },
+    email: { type: 'Email', platform: 'email', icon: <EmailIcon /> },
+    whatsapp: { type: 'WhatsApp', platform: 'whatsapp', icon: <WhatsAppIcon /> },
+    website: { type: 'Website', platform: 'website', icon: <WebsiteIcon /> },
+    link: { type: 'Custom Link', platform: 'link', icon: <LinkIcon /> },
+  };
+
+  const addContactAction = (kind: string) => {
+    const k = CONTACT_ACTION_KINDS[kind] || CONTACT_ACTION_KINDS.link;
     setContactActions([
       ...contactActions,
-      { id: newId, icon: <PhoneIcon />, label: '', type: 'Contact' },
+      { id: String(Date.now()), icon: k.icon, label: '', type: k.type, platform: k.platform, isPrimary: false },
     ]);
+    setAddMenuAnchor(null);
   };
 
   const addCustomLink = () => {
@@ -1555,9 +1585,35 @@ const EditProfileRedesigned: React.FC = () => {
                     Manage the quick-action buttons on your profile.
                   </Typography>
                 </Box>
-                <Button startIcon={<AddIcon />} variant="text" sx={{ color: '#2D6EF5' }} onClick={addContactAction}>
+                <Button
+                  startIcon={<AddIcon />}
+                  variant="text"
+                  sx={{ color: '#2D6EF5' }}
+                  onClick={(e) => setAddMenuAnchor(e.currentTarget)}
+                >
                   Add
                 </Button>
+                <Menu
+                  anchorEl={addMenuAnchor}
+                  open={Boolean(addMenuAnchor)}
+                  onClose={() => setAddMenuAnchor(null)}
+                >
+                  <MenuItem onClick={() => addContactAction('phone')}>
+                    <PhoneIcon fontSize="small" sx={{ mr: 1.5, color: '#2D6EF5' }} /> Phone
+                  </MenuItem>
+                  <MenuItem onClick={() => addContactAction('email')}>
+                    <EmailIcon fontSize="small" sx={{ mr: 1.5, color: '#2D6EF5' }} /> Email
+                  </MenuItem>
+                  <MenuItem onClick={() => addContactAction('whatsapp')}>
+                    <WhatsAppIcon fontSize="small" sx={{ mr: 1.5, color: '#25D366' }} /> WhatsApp
+                  </MenuItem>
+                  <MenuItem onClick={() => addContactAction('website')}>
+                    <WebsiteIcon fontSize="small" sx={{ mr: 1.5, color: '#2D6EF5' }} /> Website
+                  </MenuItem>
+                  <MenuItem onClick={() => addContactAction('link')}>
+                    <LinkIcon fontSize="small" sx={{ mr: 1.5, color: '#6B7280' }} /> Custom Link
+                  </MenuItem>
+                </Menu>
               </Box>
 
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>

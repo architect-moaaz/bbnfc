@@ -61,6 +61,10 @@ const DHLTemplate: React.FC<DHLTemplateProps> = ({ profile, onSaveContact, onTra
   const { personalInfo, contactInfo, socialLinks } = profile;
   const fullName = `${personalInfo.firstName} ${personalInfo.lastName}`.trim();
   const initials = `${personalInfo.firstName?.[0] || ''}${personalInfo.lastName?.[0] || ''}`.toUpperCase();
+  // Uploaded brand logo for the header, if the profile has one. Rendered with a
+  // transparent background (no box) so a transparent PNG sits cleanly on the
+  // yellow band; falls back to the text wordmark when no logo is uploaded.
+  const logoUrl = profile.customization?.logo || profile.customization?.backgroundImage || '';
 
   // Footer location from the address, defaulting to DHL HQ.
   const city = contactInfo.address?.city;
@@ -191,15 +195,31 @@ const DHLTemplate: React.FC<DHLTemplateProps> = ({ profile, onSaveContact, onTra
           }}
         >
           <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-            <Typography
-              component="span"
-              sx={{
-                fontFamily: DHL.brand, fontWeight: 800, color: DHL.red,
-                fontSize: 40, lineHeight: 1, letterSpacing: '-1px', fontStyle: 'italic',
-              }}
-            >
-              DHL
-            </Typography>
+            {logoUrl ? (
+              <Box
+                component="img"
+                src={logoUrl}
+                alt={personalInfo.company || 'Logo'}
+                sx={{
+                  height: 46,
+                  maxWidth: '65%',
+                  objectFit: 'contain',
+                  objectPosition: 'left center',
+                  backgroundColor: 'transparent', // transparent PNG blends into the band
+                  display: 'block',
+                }}
+              />
+            ) : (
+              <Typography
+                component="span"
+                sx={{
+                  fontFamily: DHL.brand, fontWeight: 800, color: DHL.red,
+                  fontSize: 40, lineHeight: 1, letterSpacing: '-1px', fontStyle: 'italic',
+                }}
+              >
+                DHL
+              </Typography>
+            )}
             <Typography
               component="span"
               sx={{ fontFamily: DHL.font, fontWeight: 800, color: DHL.red, fontSize: 15, letterSpacing: '3px', mt: 0.5 }}

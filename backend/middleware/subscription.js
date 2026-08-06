@@ -1,6 +1,12 @@
 const Organization = require('../models/Organization');
 const { subscriptionOperations, profileOperations, cardOperations } = require('../utils/dbOperations');
 
+// Default allowances for users without a paid subscription. The product does
+// not currently offer a subscription model, so these are intentionally high
+// (configurable via env) rather than the old free-tier cap of 1.
+const DEFAULT_PROFILE_LIMIT = parseInt(process.env.DEFAULT_PROFILE_LIMIT, 10) || 100;
+const DEFAULT_CARD_LIMIT = parseInt(process.env.DEFAULT_CARD_LIMIT, 10) || 100;
+
 /**
  * Middleware to check if user/organization can create a profile
  */
@@ -41,16 +47,16 @@ exports.checkProfileLimit = async (req, res, next) => {
       const profiles = await profileOperations.findByUserId(req.user._id);
       const currentProfileCount = profiles.length;
 
-      if (currentProfileCount >= 1) {
+      if (currentProfileCount >= DEFAULT_PROFILE_LIMIT) {
         return res.status(403).json({
           success: false,
-          error: 'Please upgrade your plan to create more profiles',
-          limit: 1,
+          error: `Profile limit reached (${DEFAULT_PROFILE_LIMIT}). Contact support to raise it.`,
+          limit: DEFAULT_PROFILE_LIMIT,
           current: currentProfileCount
         });
       }
 
-      // Allow first profile creation
+      // No subscription model in use — allow profile creation
       return next();
     }
 
@@ -121,16 +127,16 @@ exports.checkCardLimit = async (req, res, next) => {
       const cards = await cardOperations.findByUserId(req.user._id);
       const currentCardCount = cards.length;
 
-      if (currentCardCount >= 1) {
+      if (currentCardCount >= DEFAULT_CARD_LIMIT) {
         return res.status(403).json({
           success: false,
-          error: 'Please upgrade your plan to create more cards',
-          limit: 1,
+          error: `Card limit reached (${DEFAULT_CARD_LIMIT}). Contact support to raise it.`,
+          limit: DEFAULT_CARD_LIMIT,
           current: currentCardCount
         });
       }
 
-      // Allow first card creation
+      // No subscription model in use — allow card creation
       return next();
     }
 
