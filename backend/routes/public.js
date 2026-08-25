@@ -290,15 +290,16 @@ router.get('/:profileId/vcard', async (req, res) => {
     };
     
     // Generate vCard content
-    const firstName = profile.personalInfo.firstName || 'Contact';
-    const lastName = profile.personalInfo.lastName || '';
+    const rawFirst = (profile.personalInfo.firstName || '').trim();
+    const rawLast = (profile.personalInfo.lastName || '').trim();
+    const displayName = [rawFirst, rawLast].filter(Boolean).join(' ') || (profile.personalInfo.company || '').trim() || 'Contact';
     
     const vcardLines = [
       'BEGIN:VCARD',
       'VERSION:3.0',
       'PRODID:-//NFC Business Card//EN',
-      `FN:${escapeVCardValue(firstName)} ${escapeVCardValue(lastName)}`.trim(),
-      `N:${escapeVCardValue(lastName)};${escapeVCardValue(firstName)};;;`
+      `FN:${escapeVCardValue(displayName)}`,
+      `N:${escapeVCardValue(rawLast)};${escapeVCardValue(rawFirst)};;;`
     ];
     
     // Add optional fields only if they exist
@@ -397,7 +398,7 @@ router.get('/:profileId/vcard', async (req, res) => {
 
     res.set({
       'Content-Type': 'text/vcard;charset=utf-8',
-      'Content-Disposition': `attachment; filename="${profile.personalInfo.firstName}_${profile.personalInfo.lastName}.vcf"`,
+      'Content-Disposition': `attachment; filename="${displayName.replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_+|_+$/g, '') || 'contact'}.vcf"`,
       'Cache-Control': 'no-cache, no-store, must-revalidate',
       'Pragma': 'no-cache',
       'Expires': '0'

@@ -78,10 +78,10 @@ export const generateVCard = (data: VCardData): string => {
   lines.push('PRODID:-//NFC Business Card//EN');
   
   // Name fields - ensure they're not empty
-  const firstName = data.firstName || 'Contact';
-  const lastName = data.lastName || '';
-  const fullName = `${escapeVCardValue(firstName)} ${escapeVCardValue(lastName)}`.trim();
-  lines.push(`FN:${fullName}`);
+  const firstName = (data.firstName || '').trim();
+  const lastName = (data.lastName || '').trim();
+  const fullName = [firstName, lastName].filter(Boolean).join(' ') || 'Contact';
+  lines.push(`FN:${escapeVCardValue(fullName)}`);
   lines.push(`N:${escapeVCardValue(lastName)};${escapeVCardValue(firstName)};;;`);
   
   // Title and organization
@@ -201,10 +201,10 @@ export const generateSimpleVCard = (data: VCardData): string => {
   lines.push('PRODID:-//NFC Business Card//EN');
   
   // Essential name fields only
-  const firstName = data.firstName || 'Contact';
-  const lastName = data.lastName || '';
-  const fullName = `${escapeVCardValue(firstName)} ${escapeVCardValue(lastName)}`.trim();
-  lines.push(`FN:${fullName}`);
+  const firstName = (data.firstName || '').trim();
+  const lastName = (data.lastName || '').trim();
+  const fullName = [firstName, lastName].filter(Boolean).join(' ') || 'Contact';
+  lines.push(`FN:${escapeVCardValue(fullName)}`);
   lines.push(`N:${escapeVCardValue(lastName)};${escapeVCardValue(firstName)};;;`);
   
   // Essential contact info only

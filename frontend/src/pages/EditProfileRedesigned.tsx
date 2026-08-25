@@ -1507,7 +1507,7 @@ const EditProfileRedesigned: React.FC = () => {
                 label="Full Name"
                 value={`${profile.personalInfo?.firstName || ''} ${profile.personalInfo?.lastName || ''}`}
                 onChange={(e) => {
-                  const names = e.target.value.split(' ');
+                  const names = e.target.value.trim().split(/\s+/);
                   setProfile({
                     ...profile,
                     personalInfo: {
