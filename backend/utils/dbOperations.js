@@ -663,11 +663,14 @@ const adminOperations = {
   async getActiveProfileCount(daysAgo = 30) {
     const db = await getDatabase();
     const dateThreshold = new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1000);
-    const distinctProfiles = await db.collection('analytics').distinct('profile', {
-      eventType: 'view',
-      timestamp: { $gte: dateThreshold }
-    });
-    return distinctProfiles.length;
+    // Use aggregation instead of distinct() — distinct is not allowed under
+    // the MongoDB Stable API v1 strict mode configured in mongodb.js.
+    const grouped = await db.collection('analytics').aggregate([
+      { $match: { eventType: 'view', timestamp: { $gte: dateThreshold } } },
+      { $group: { _id: '$profile' } },
+      { $count: 'count' }
+    ]).toArray();
+    return grouped.length > 0 ? grouped[0].count : 0;
   },
 
   async getUsersWithPagination(page = 1, limit = 20) {

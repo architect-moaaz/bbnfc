@@ -1,6 +1,25 @@
 const jwt = require('jsonwebtoken');
-const User = require('../models/User');
 const { userOperations } = require('../utils/dbOperations');
+
+// Attach schema-style permission helpers to a plain native-driver user document
+// so routes/middleware can call req.user.isOrgAdmin()/hasPermission()/etc.
+// WITHOUT depending on Mongoose — which is not reliably connected in the Vercel
+// serverless runtime, so using it in the auth path 401s every request (instant
+// logout). The rest of the app uses the native driver, which connects reliably.
+const attachUserMethods = (user) => {
+  if (!user) return user;
+  user.isOrgAdmin = () =>
+    user.role === 'org_admin' || user.role === 'admin' || user.role === 'super_admin' ||
+    user.organizationRole === 'admin' || user.organizationRole === 'owner';
+  user.hasPermission = (permission) => {
+    if (user.role === 'super_admin' || user.role === 'admin') return true;
+    const orgAdminPermissions = ['manage_cards', 'view_cards', 'manage_profiles', 'view_profiles', 'manage_users', 'view_users', 'view_analytics', 'manage_organization', 'manage_templates', 'manage_invitations'];
+    if (user.isOrgAdmin() && orgAdminPermissions.includes(permission)) return true;
+    return ['view_profiles', 'view_cards', 'view_analytics'].includes(permission);
+  };
+  user.isAccountLocked = () => !!(user.accountLockedUntil && user.accountLockedUntil > Date.now());
+  return user;
+};
 
 // Protect routes
 exports.protect = async (req, res, next) => {
@@ -19,9 +38,8 @@ exports.protect = async (req, res, next) => {
   
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    // Hydrate as a Mongoose document so req.user has schema instance methods
-    // (isOrgAdmin, hasPermission, .save(), etc.) that many routes rely on.
-    req.user = await User.findById(decoded.id);
+    // Load via the native driver (reliable in serverless); attach permission helpers.
+    req.user = attachUserMethods(await userOperations.findById(decoded.id));
 
     if (!req.user) {
       return res.status(401).json({
@@ -34,6 +52,7 @@ exports.protect = async (req, res, next) => {
     
     next();
   } catch (err) {
+    console.error('Auth protect error:', err && err.message);
     return res.status(401).json({
       success: false,
       error: 'Not authorized to access this route'
