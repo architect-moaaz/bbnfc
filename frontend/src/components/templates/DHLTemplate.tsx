@@ -10,6 +10,7 @@ import {
 import { motion } from 'framer-motion';
 import QRCode from 'qrcode';
 import { Profile } from '../../types';
+import dhlLogo from './dhl-logo.png';
 
 /**
  * DHL-branded digital business card template.
@@ -191,15 +192,12 @@ const DHLTemplate: React.FC<DHLTemplateProps> = ({ profile, onSaveContact, onTra
           }}
         >
           <Box sx={{ display: 'flex', alignItems: 'flex-start' }}>
-            <Typography
-              component="span"
-              sx={{
-                fontFamily: DHL.brand, fontWeight: 800, color: DHL.red,
-                fontSize: 40, lineHeight: 1, letterSpacing: '-1px', fontStyle: 'italic',
-              }}
-            >
-              DHL
-            </Typography>
+            <Box
+              component="img"
+              src={dhlLogo}
+              alt="DHL"
+              sx={{ height: 40, width: 'auto', display: 'block' }}
+            />
           </Box>
           <Typography
             sx={{ fontFamily: DHL.brand, fontWeight: 800, color: DHL.ink, fontSize: 17, letterSpacing: '0.2px', mt: 1.25 }}
